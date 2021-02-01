@@ -1,0 +1,19 @@
+name: dart_git
+description: Git implementation in dart
+version: 0.0.1
+author:
+homepage:
+
+environment:
+  sdk: ">=2.7.0 <3.0.0"
+
+dependencies:
+  crypto: ^2.1.5
+  path: ^1.7.0
+  buffer: ^1.0.7
+  hex: ^0.1.2
+  collection: ^1.14.13
+  equatable: ^1.2.5
+
+dev_dependencies:
+  test: ^1.15.7
