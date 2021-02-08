@@ -1,75 +1,67 @@
 import 'dart:io';
 import 'package:dart_git/src/exceptions.dart';
+import 'package:dart_git/src/git_hash.dart';
 import 'package:dart_git/src/plumbing/index.dart';
-import 'package:meta/meta.dart';
+import 'package:dart_git/src/plumbing/reference.dart';
 import 'package:path/path.dart' as p;
 import 'package:dart_git/src/git_config.dart';
 import 'package:dart_git/src/plumbing/objects/object.dart';
 
 class GitRepo {
-  GitRepo({
-    @required this.dir,
-    @required this.config,
-  });
+  GitRepo(this.dir) {
+    validate();
+  }
 
-  final Directory dir;
-  final GitConfig config;
+  Directory dir;
+
   Directory getGitDir() => Directory(p.join(dir.path, '.git'));
-  GitIndex readIndex() => (indexFile.existsSync()) ? GitIndex.fromBytes(indexFile.readAsBytesSync()) : GitIndex(entries: {}, version: 2);
-  Future<File> writeIndex(GitIndex index) => indexFile.writeAsBytes(index.serialize());
 
   validate() {
     var exception = InvalidGitRepositoryException(this.dir.path);
-    // Check if HEAD file is a symlink
-    if (FileSystemEntity.isLinkSync(this.headFile.path)) {
-      var linkPath = this.headFile.resolveSymbolicLinksSync();
-      if (p.isWithin(this.refFolder.path, linkPath)) throw exception;
-    } else {
-      // Check if HEAD file contains valid ref
-      var headFileContents = this.headFile.readAsStringSync();
-      var validRef = headFileContents.startsWith('ref: refs/');
-      // Check if HEAD is detached
-      var isDetached = RegExp(r'^[a-fA-F0-9]{40}$').hasMatch(headFileContents);
-      if (!validRef && !isDetached) throw exception;
+    if (!headFile.existsSync()) throw exception;
+    try {
+      readHEAD();
+    } catch (e) {
+      throw exception;
     }
   }
 
-  static Future<GitRepo> init(Directory dir, {bool bare = false}) async {
+  GitRepo.init(Directory dir, {bool bare = false}) {
+    this.dir = dir;
     var gitDir = bare ? dir : Directory(p.join(dir.path, '.git'));
 
-    await gitDir.create();
+    gitDir.createSync();
 
     // Init git config
     var config = GitConfig();
     var configSection = config.addSection('core');
-    configSection.set('repositoryformatversion', '0');
-    configSection.set('filemode', 'true');
-    configSection.set('bare', bare.toString());
-    if (!bare) configSection.set('logallrefupdates', 'true');
-
-    var repo = GitRepo(dir: dir, config: config );
+    configSection.set('repositoryformatversion', 0);
+    var configFileMode = (Platform.isWindows) ? false : true;
+    configSection.set('filemode', configFileMode);
+    configSection.set('bare', bare);
+    if (!bare) configSection.set('logallrefupdates', true);
 
     // Create directories
     var dirList = [
-      repo.branchFolder,
-      repo.refFolder,
-      repo.refTagsFolder,
-      repo.refHeadsFolder,
-      repo.objectsFolder,
-      repo.objectsInfoFolder,
-      repo.objectsPackFolder,
-      repo.infoFolder,
+      this.branchFolder,
+      this.refFolder,
+      this.refTagsFolder,
+      this.refHeadsFolder,
+      this.objectsFolder,
+      this.objectsInfoFolder,
+      this.objectsPackFolder,
+      this.infoFolder,
     ];
 
     for (var dir in dirList) {
-      await dir.create();
+      dir.createSync();
     }
 
     // Create and write files
     var fileList = <File, String>{
-      File(p.join(repo.getGitDir().path, 'description')): "Unnamed repository; edit this file 'description' to name the repository.\n",
-      repo.headFile: 'ref: refs/heads/master\n',
-      repo.infoExcludeFile:
+      File(p.join(this.getGitDir().path, 'description')): "Unnamed repository; edit this file 'description' to name the repository.\n",
+      this.headFile: 'ref: refs/heads/master\n',
+      this.infoExcludeFile:
 r'''
 # git ls-files --others --exclude-from=.git/info/exclude
 # Lines that start with '#' are comments.
@@ -84,20 +76,46 @@ r'''
       file.createSync();
       file.writeAsStringSync(contents);
     });
-    config.writeToRepo(repo);
-    return repo;
+    this.writeConfig(config);
+  }
+
+  GitConfig readConfig() => (configFile.existsSync()) ? GitConfig.fromBytes(configFile.readAsBytesSync()) : GitConfig();
+
+  writeConfig(GitConfig config) {
+    if (!configFile.existsSync()) configFile.createSync();
+    configFile.writeAsBytesSync(config.serialize());
+  }
+
+  GitIndex readIndex() => (indexFile.existsSync()) ? GitIndex.fromBytes(indexFile.readAsBytesSync()) : GitIndex(entries: {}, version: 2);
+
+  writeIndex(GitIndex index) {
+    if (!indexFile.existsSync()) indexFile.createSync();
+    indexFile.writeAsBytesSync(index.serialize());
   }
 
   writeObject(GitObject object) {
     var hash = object.hash.toString();
     var dir = Directory(p.join(this.objectsFolder.path, hash.substring(0, 2)));
     var file = File(p.join(dir.path, hash.substring(2, hash.length)));
-    dir.createSync();
-    file.createSync();
+    dir.create();
+    file.create();
 
     var data = object.serialize();
     var compressedData = ZLibCodec(level: 1).encode(data);
-    file.writeAsBytesSync(compressedData);
+    file.writeAsBytes(compressedData);
+  }
+
+  GitReference readHEAD() {
+    if (!headFile.existsSync()) throw InvalidGitRepositoryException(this.dir.path);
+    var symbolicRefPrefix = 'ref:';
+    var data = headFile.readAsStringSync();
+    if (headFile.statSync().type == FileSystemEntityType.link) {
+      var symlinkPath = headFile.resolveSymbolicLinksSync();
+      symlinkPath = p.relative(symlinkPath, from: this.getGitDir().path);
+      data =  '$symbolicRefPrefix $symlinkPath';
+    }
+    if (data.startsWith(symbolicRefPrefix)) return GitReference.fromLink(this, data);
+    else return GitReference.fromHash(this, GitHash(data));
   }
 }
 

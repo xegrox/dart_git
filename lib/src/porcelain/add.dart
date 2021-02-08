@@ -6,13 +6,13 @@ import 'package:dart_git/src/plumbing/objects/blob.dart';
 import 'package:path/path.dart' as p;
 
 extension Add on GitRepo {
-  add(File file) async {
+  add(File file) {
     this.validate();
     if (!p.isWithin(this.dir.path, file.path)) throw PathSpecOutsideRepoException(this.dir.path, file.path);
     var index = this.readIndex();
 
     var data = file.readAsBytesSync();
-    var blob = GitBlob.fromBytes(data);
+    var blob = GitBlob.fromContent(data);
     this.writeObject(blob);
 
     var stat = file.statSync();
@@ -38,16 +38,20 @@ extension Add on GitRepo {
     if (Platform.isLinux | Platform.isAndroid | Platform.isMacOS) {
       var option = (Platform.isMacOS) ? '-f' : '-c';
       // %d = device, %i = inode
-      var command = Process.runSync('stat', [option, r'"%d %i"', '\"file.path\"'], runInShell: true);
+      var command = Process.runSync('stat', [option, r'"%d %i"', file.path], runInShell: true);
       if (command.exitCode == 0) {
-        var outputs = command.toString().split(' ');
-        device = int.parse(outputs[0]);
-        inode = int.parse(outputs[1]);
+        var output = command.stdout.toString();
+        print(command);
+        var splitOutput = output.replaceAll(r'"', '').split(' ');
+        device = int.parse(splitOutput[0]);
+        inode = int.parse(splitOutput[1]);
+        print('$device + $inode');
       }
 
       // uid
       command = Process.runSync('id', ['-u'], runInShell: true);
       if (command.exitCode == 0) uid = int.parse(command.stdout);
+      print(uid);
 
       // gid
       command = Process.runSync('id', ['-g'], runInShell: true);
@@ -57,9 +61,7 @@ extension Add on GitRepo {
     var mode = GitFileMode(stat.mode);
     switch (stat.type) {
       case FileSystemEntityType.file:
-        var isExecutable = stat.modeString()[2] == 'x';
-        if (isExecutable) mode = GitFileMode.Executable;
-        else mode = GitFileMode.Regular;
+        mode = GitFileMode.Regular;
         break;
       case FileSystemEntityType.directory:
         mode = GitFileMode.Dir;
@@ -85,6 +87,6 @@ extension Add on GitRepo {
     );
 
     index.entries[indexEntry.path] = indexEntry;
-    await this.writeIndex(index);
+    this.writeIndex(index);
   }
 }

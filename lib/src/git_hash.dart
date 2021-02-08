@@ -13,7 +13,7 @@ class GitHash {
   }
   
   GitHash(String hash) {
-    if (hash.length != 20) throw Exception("Invalid hash size");
+    if (!RegExp(r'^[a-fA-F0-9]{40}$').hasMatch(hash)) throw Exception("Invalid hash");
     bytes = _hexCodec.decode(hash);
   }
 
