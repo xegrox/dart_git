@@ -28,7 +28,7 @@ class GitReference {
   bool isDetached() => (this.type == GitReferenceType.hash);
   GitHash _detachedHash;
 
-  GitHash getHash() {
+  GitHash readHash() {
     if (type == GitReferenceType.hash) return _detachedHash;
     var targetFile = File(p.join(repo.getGitDir().path, _symbolicTarget));
     var hash = targetFile.readAsStringSync();

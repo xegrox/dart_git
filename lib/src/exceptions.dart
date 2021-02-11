@@ -54,3 +54,14 @@ class BrokenReferenceException extends GitException {
   BrokenReferenceException(this.ref)
       : super('fatal: broken git reference \'ref: $ref\'');
 }
+
+class CorruptObjectException extends GitException {
+  final String hash;
+  CorruptObjectException(this.hash)
+      : super('fatal: object \'$hash\' is corrupt');
+}
+
+class NothingToCommitException extends GitException {
+  NothingToCommitException()
+      : super('fatal: nothing to commit, working tree clean or modified files untracked');
+}

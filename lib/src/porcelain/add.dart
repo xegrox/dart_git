@@ -11,8 +11,8 @@ extension Add on GitRepo {
     if (!p.isWithin(this.dir.path, file.path)) throw PathSpecOutsideRepoException(this.dir.path, file.path);
     var index = this.readIndex();
 
-    var data = file.readAsBytesSync();
-    var blob = GitBlob.fromContent(data);
+    var content = file.readAsBytesSync();
+    var blob = GitBlob.fromContent(content);
     this.writeObject(blob);
 
     var stat = file.statSync();

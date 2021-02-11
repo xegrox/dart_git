@@ -1,15 +1,32 @@
 import 'dart:convert';
+import 'package:meta/meta.dart';
 import 'dart:typed_data';
+import 'package:dart_git/src/exceptions.dart';
 import 'package:dart_git/src/git_hash.dart';
 
 abstract class GitObject {
-  final Uint8List content;
-
-  GitObject.fromContent(this.content);
+  GitObject();
 
   String get signature;
+  Uint8List serializeContent();
+
+  @protected
+  Uint8List getContent(Uint8List data) {
+    try {
+      var sig = ascii.decode(data.sublist(0, ascii.encode(signature).length));
+      if (sig != signature) throw Exception;
+      var cLengthEndIndex = data.indexOf(0x00, sig.length);
+      var contentLength = int.parse(ascii.decode(data.sublist(sig.length, cLengthEndIndex)));
+      var content = data.sublist(cLengthEndIndex + 1);
+      if (content.length != contentLength) throw Exception;
+      return data.sublist(cLengthEndIndex + 1);
+    } catch (e) {
+      throw GitException('invalid object format');
+    }
+  }
 
   Uint8List serialize() {
+    var content = serializeContent();
     List<int> serializedData = [];
     var contentLength = content.lengthInBytes;
     serializedData.addAll(utf8.encode('$signature $contentLength'));
@@ -19,5 +36,4 @@ abstract class GitObject {
   }
 
   GitHash get hash => GitHash.compute(serialize());
-
 }

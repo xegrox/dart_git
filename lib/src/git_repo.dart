@@ -2,10 +2,19 @@ import 'dart:io';
 import 'package:dart_git/src/exceptions.dart';
 import 'package:dart_git/src/git_hash.dart';
 import 'package:dart_git/src/plumbing/index.dart';
+import 'package:dart_git/src/plumbing/objects/blob.dart';
+import 'package:dart_git/src/plumbing/objects/commit.dart';
+import 'package:dart_git/src/plumbing/objects/tree.dart';
 import 'package:dart_git/src/plumbing/reference.dart';
 import 'package:path/path.dart' as p;
 import 'package:dart_git/src/git_config.dart';
 import 'package:dart_git/src/plumbing/objects/object.dart';
+
+enum GitObjectType {
+  blob,
+  tree,
+  commit
+}
 
 class GitRepo {
   GitRepo(this.dir) {
@@ -93,16 +102,35 @@ r'''
     indexFile.writeAsBytesSync(index.serialize());
   }
 
+  File _objectFileFromHash(GitHash hash) {
+    var h = hash.toString();
+    var dir = Directory(p.join(this.objectsFolder.path, h.substring(0, 2)));
+    return File(p.join(dir.path, h.substring(2, h.length)));
+  }
+
+  GitObject readObject(GitObjectType type, GitHash hash) {
+    var compressedData = _objectFileFromHash(hash).readAsBytesSync();
+    var data = zlib.decode(compressedData);
+    switch(type) {
+      case GitObjectType.blob:
+        return GitBlob.fromBytes(data);
+      case GitObjectType.tree:
+        return GitTree.fromBytes(data);
+      case GitObjectType.commit:
+        return GitCommit.fromBytes(data);
+    }
+  }
+
   writeObject(GitObject object) {
-    var hash = object.hash.toString();
-    var dir = Directory(p.join(this.objectsFolder.path, hash.substring(0, 2)));
-    var file = File(p.join(dir.path, hash.substring(2, hash.length)));
-    dir.create();
+    var hash = object.hash;
+    var file = _objectFileFromHash(hash);
+    objectsFolder.create();
+    file.parent.create();
     file.create();
 
     var data = object.serialize();
     var compressedData = ZLibCodec(level: 1).encode(data);
-    file.writeAsBytes(compressedData);
+    file.writeAsBytesSync(compressedData);
   }
 
   GitReference readHEAD() {

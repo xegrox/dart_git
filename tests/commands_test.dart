@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:dart_git/src/exceptions.dart';
 import 'package:test/test.dart';
 import 'package:dart_git/dart_git.dart';
 import 'package:path/path.dart' as p;
@@ -18,6 +19,7 @@ void main() {
   test('Test git init', () {
     repo = GitRepo.init(sandboxDir);
     repo.validate();
+    expect(() => repo.commit(''), throwsA(TypeMatcher<NothingToCommitException>()));
   });
   
   test('Test git add', () {
@@ -29,6 +31,11 @@ void main() {
     var file_2 = fixture(name_2).copySync(p.join(repo.dir.path, name_2));
     var file_3 = fixture(name_3).copySync(p.join(repo.dir.path, name_3));
 
+    repo.add(file_1);
+    repo.add(file_2);
+    repo.add(file_3);
+
+    // Repeat to ensure no extra entries are added
     repo.add(file_1);
     repo.add(file_2);
     repo.add(file_3);
@@ -47,7 +54,8 @@ void main() {
     section.set('email', 'xegrox@protonmail.com');
     repo.writeConfig(config);
     repo.commit('Initial commit');
+    expect(() => repo.commit(''), throwsA(TypeMatcher<NothingToCommitException>()));
   });
 
-  //tearDownAll(() => sandboxDir.deleteSync(recursive: true));
+  tearDownAll(() => sandboxDir.deleteSync(recursive: true));
 }

@@ -290,12 +290,12 @@ class GitTimestamp {
   });
 }
 
-List<int> _readUntil(ByteDataReader file, int r) {
+Uint8List _readUntil(ByteDataReader reader, int r) {
   var l = <int>[];
   while (true) {
-    var c = file.readInt8();
+    var c = reader.readUint8();
     if (c == r) {
-      return l;
+      return Uint8List.fromList(l);
     }
     l.add(c);
   }
