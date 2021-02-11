@@ -1,6 +1,5 @@
 import 'dart:convert';
 import 'dart:typed_data';
-import 'package:collection/collection.dart';
 import 'package:dart_git/src/exceptions.dart';
 import 'package:equatable/equatable.dart';
 import 'package:meta/meta.dart';
@@ -24,7 +23,7 @@ class GitTreeEntry extends Equatable {
   List<Object> get props => [path, mode, hash];
 }
 
-class GitTree extends GitObject {
+class GitTree extends GitObject with EquatableMixin {
 
   List<GitTreeEntry> entries;
 
@@ -75,7 +74,7 @@ class GitTree extends GitObject {
   }
 
   @override
-  bool operator ==(Object other) => other is GitTree && ListEquality().equals(other.entries, this.entries);
+  List<Object> get props => [entries];
 
 }
 

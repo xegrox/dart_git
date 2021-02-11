@@ -1,13 +1,14 @@
 import 'package:dart_git/src/exceptions.dart';
 import 'package:dart_git/src/git_hash.dart';
 import 'package:dart_git/src/plumbing/objects/tree.dart';
+import 'package:equatable/equatable.dart';
 import 'package:meta/meta.dart';
 import 'dart:convert';
 import 'dart:typed_data';
 import 'package:dart_git/src/git_config.dart';
 import 'object.dart';
 
-class GitCommitTimestamp {
+class GitCommitTimestamp extends Equatable {
   final int secondsSinceEpoch;
   final String timezone;
   
@@ -35,9 +36,13 @@ class GitCommitTimestamp {
       timezone: timezone
     );
   }
+
+  @override
+  List<Object> get props => [secondsSinceEpoch, timezone];
+
 }
 
-class GitCommitUser {
+class GitCommitUser extends Equatable {
   final String name;
   final String email;
   final GitCommitTimestamp timestamp;
@@ -49,9 +54,13 @@ class GitCommitUser {
   });
 
   String serialize() => '$name <$email> ${timestamp.secondsSinceEpoch} ${timestamp.timezone}';
+
+  @override
+  List<Object> get props => [name, email, timestamp];
+
 }
 
-class GitCommit extends GitObject {
+class GitCommit extends GitObject with EquatableMixin {
 
   DateTime time = DateTime.now();
   GitHash treeHash;
@@ -129,5 +138,8 @@ class GitCommit extends GitObject {
 
   @override
   String get signature => 'commit';
+
+  @override
+  List<Object> get props => [treeHash, parentHash, author, committer, message];
 
 }

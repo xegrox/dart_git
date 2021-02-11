@@ -1,7 +1,8 @@
+import 'package:equatable/equatable.dart';
 import 'dart:typed_data';
 import 'object.dart';
 
-class GitBlob extends GitObject {
+class GitBlob extends GitObject with EquatableMixin {
   Uint8List content;
 
   @override
@@ -15,5 +16,8 @@ class GitBlob extends GitObject {
 
   @override
   Uint8List serializeContent() => content;
+
+  @override
+  List<Object> get props => [content];
 
 }
