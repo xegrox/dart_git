@@ -1,16 +1,17 @@
 import 'dart:io';
-import 'package:dart_git/src/exceptions.dart';
-import 'package:test/test.dart';
-import 'package:dart_git/dart_git.dart';
+
 import 'package:path/path.dart' as p;
+import 'package:test/test.dart';
+
+import 'package:dart_git/dart_git.dart';
+import 'package:dart_git/src/exceptions.dart';
 import 'constants.dart';
 import 'utils.dart';
 
 void main() {
-
   Directory sandboxDir;
   GitRepo repo;
-  
+
   setUpAll(() {
     sandboxDir = Directory(p.join(rootDir.path, 'test_sandbox'));
     sandboxDir.createSync();
@@ -21,7 +22,7 @@ void main() {
     repo.validate();
     expect(() => repo.commit(''), throwsA(TypeMatcher<NothingToCommitException>()));
   });
-  
+
   test('Test git add', () {
     var name_1 = 'blob_1.txt';
     var name_2 = 'blob_2.txt';

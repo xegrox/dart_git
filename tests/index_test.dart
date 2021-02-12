@@ -1,13 +1,11 @@
-import 'package:collection/collection.dart';
-import 'package:dart_git/src/plumbing/index.dart';
 import 'package:test/test.dart';
 
+import 'package:dart_git/src/plumbing/index.dart';
 import 'constants.dart';
 import 'utils.dart';
 
 void main() {
-  var listEq = ListEquality().equals;
-  commonIndexReadTest(GitIndex index) {
+  void commonIndexReadTest(GitIndex index) {
     var entries = index.entries;
 
     expect(entries.length, 3);
@@ -73,5 +71,4 @@ void main() {
     var genIndexData = index.serialize();
     expect(listEq(genIndexData, rawIndexData), true);
   });
-
 }

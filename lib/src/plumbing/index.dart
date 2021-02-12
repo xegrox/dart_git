@@ -1,15 +1,15 @@
 import 'dart:convert';
 import 'dart:typed_data';
-import 'package:collection/collection.dart';
+
 import 'package:buffer/buffer.dart';
-import 'package:dart_git/src/exceptions.dart';
-import 'package:dart_git/src/git_vlq_codec.dart';
 import 'package:equatable/equatable.dart';
 import 'package:meta/meta.dart';
+
+import 'package:dart_git/src/exceptions.dart';
 import 'package:dart_git/src/git_hash.dart';
+import 'package:dart_git/src/git_vlq_codec.dart';
 
 class GitIndexEntry {
-
   int version;
   GitTimestamp cTime;
   GitTimestamp mTime;
@@ -27,25 +27,23 @@ class GitIndexEntry {
   bool skipWorkTree;
   bool intentToAdd;
 
-  GitIndexEntry({
-    @required this.version,
-    @required this.cTime,
-    @required this.mTime,
-    @required this.device,
-    @required this.inode,
-    @required this.mode,
-    @required this.uid,
-    @required this.gid,
-    @required this.fileSize,
-    @required this.hash,
-    @required this.stage,
-    @required this.path,
-
-    this.assumeValid = false,
-    this.extended = false,
-    this.skipWorkTree = false,
-    this.intentToAdd = false
-  });
+  GitIndexEntry(
+      {@required this.version,
+      @required this.cTime,
+      @required this.mTime,
+      @required this.device,
+      @required this.inode,
+      @required this.mode,
+      @required this.uid,
+      @required this.gid,
+      @required this.fileSize,
+      @required this.hash,
+      @required this.stage,
+      @required this.path,
+      this.assumeValid = false,
+      this.extended = false,
+      this.skipWorkTree = false,
+      this.intentToAdd = false});
 
   GitIndexEntry.fromBytes(ByteDataReader reader, String previousEntryPath, int indexVersion) {
     version = indexVersion;
@@ -54,20 +52,12 @@ class GitIndexEntry {
     var cTimeSeconds = reader.readUint32();
     var cTimeNanoSeconds = reader.readUint32();
     var cTimeDateTime = epochDateTime.add(Duration(seconds: cTimeSeconds, microseconds: cTimeNanoSeconds ~/ 1000));
-    cTime = GitTimestamp(
-      dateTime: cTimeDateTime,
-      seconds: cTimeSeconds,
-      nanoSeconds: cTimeNanoSeconds
-    );
+    cTime = GitTimestamp(dateTime: cTimeDateTime, seconds: cTimeSeconds, nanoSeconds: cTimeNanoSeconds);
 
     var mTimeSeconds = reader.readUint32();
     var mTimeNanoSeconds = reader.readUint32();
     var mTimeDateTime = epochDateTime.add(Duration(seconds: mTimeSeconds, microseconds: mTimeNanoSeconds ~/ 1000));
-    mTime = GitTimestamp(
-        dateTime: mTimeDateTime,
-        seconds: mTimeSeconds,
-        nanoSeconds: mTimeNanoSeconds
-    );
+    mTime = GitTimestamp(dateTime: mTimeDateTime, seconds: mTimeSeconds, nanoSeconds: mTimeNanoSeconds);
 
     device = reader.readUint32();
     inode = reader.readUint32();
@@ -95,7 +85,7 @@ class GitIndexEntry {
       // TODO: support sparse checkout
       skipWorkTree = (extendedFlags & skipWorkTreeMask) > 0;
     }
-    switch(version) {
+    switch (version) {
       case 2:
       case 3:
         const nameMask = 0xfff;
@@ -130,7 +120,6 @@ class GitIndexEntry {
 
     var writer = ByteDataWriter(endian: Endian.big);
 
-
     writer.writeUint32(cTime.seconds);
     writer.writeUint32(cTime.nanoSeconds);
 
@@ -155,7 +144,7 @@ class GitIndexEntry {
     var flags = (assumeValidBit << 15) | (extendedBit << 14) | (stage.val << 12) | pathLengthBits;
     writer.writeUint16(flags);
 
-    switch(version) {
+    switch (version) {
       case 2:
       case 3:
         writer.write(ascii.encode(path));
@@ -168,8 +157,9 @@ class GitIndexEntry {
           for (var i = 0; i < path.length; i++) {
             if (path[i] == previousEntryPath[i]) {
               prefix += path[i];
-            } else
+            } else {
               break;
+            }
           }
         }
         var name = path.substring(prefix.length, path.length) + '\x00';
@@ -191,34 +181,34 @@ class GitIndexEntry {
 class GitIndex {
   Map<String, GitIndexEntry> entries = {};
 
-  final _signature = ascii.encode('DIRC');
-  final _listEq = ListEquality().equals;
+  final _signature = 'DIRC';
   int version;
 
-  GitIndex({
-    @required this.entries,
-    @required this.version
-  });
+  GitIndex({@required this.entries, @required this.version});
 
   GitIndex.fromBytes(Uint8List data) {
     var reader = ByteDataReader(endian: Endian.big);
     reader.add(data);
-    var sig = reader.read(4);
-    if (!_listEq(sig, _signature) || sig.length < 4) throw GitIndexException('Invalid signature $sig');
-    this.version = reader.readUint32();
-    if (version < 2 || version > 4) throw GitIndexException('Version "$version" is unsupported; The current supported versions are 2, 3 and 4.');
+    var sig = ascii.decode(reader.read(4));
+    if (sig != _signature || sig.length < 4) {
+      throw GitIndexException('Invalid signature $sig');
+    }
+    version = reader.readUint32();
+    if (version < 2 || version > 4) {
+      throw GitIndexException('Version "$version" is unsupported; Only versions 2, 3 and 4 are supported');
+    }
     var numEntries = reader.readUint32();
     var previousEntryPath = '';
-    for (var i = 0; i < numEntries; i++ ) {
+    for (var i = 0; i < numEntries; i++) {
       var entry = GitIndexEntry.fromBytes(reader, previousEntryPath, version);
       previousEntryPath = entry.path;
-      this.entries[entry.path] = entry;
+      entries[entry.path] = entry;
     }
   }
 
   Uint8List serialize() {
     var writer = ByteDataWriter(endian: Endian.big);
-    writer.write(_signature);
+    writer.write(ascii.encode(_signature));
     writer.writeUint32(version);
     writer.writeUint32(entries.length);
     var previousEntryPath = '';
@@ -232,7 +222,6 @@ class GitIndex {
 
     return writer.toBytes();
   }
-
 }
 
 class GitFileMode extends Equatable {
@@ -279,15 +268,12 @@ class GitFileStage extends Equatable {
 
 class GitTimestamp {
   final DateTime dateTime;
+
   // This is necessary as DateTime only stores up to microSeconds
   final int seconds;
   final int nanoSeconds;
 
-  GitTimestamp({
-    @required this.dateTime,
-    @required this.seconds,
-    @required this.nanoSeconds
-  });
+  GitTimestamp({@required this.dateTime, @required this.seconds, @required this.nanoSeconds});
 }
 
 Uint8List _readUntil(ByteDataReader reader, int r) {

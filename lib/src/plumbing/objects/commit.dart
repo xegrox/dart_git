@@ -1,29 +1,24 @@
-import 'package:dart_git/src/exceptions.dart';
-import 'package:dart_git/src/git_hash.dart';
-import 'package:dart_git/src/plumbing/objects/tree.dart';
-import 'package:equatable/equatable.dart';
-import 'package:meta/meta.dart';
 import 'dart:convert';
 import 'dart:typed_data';
+
+import 'package:equatable/equatable.dart';
+import 'package:meta/meta.dart';
+
+import 'package:dart_git/src/exceptions.dart';
 import 'package:dart_git/src/git_config.dart';
-import 'object.dart';
+import 'package:dart_git/src/git_hash.dart';
+import 'package:dart_git/src/plumbing/objects/object.dart';
+import 'package:dart_git/src/plumbing/objects/tree.dart';
 
 class GitCommitTimestamp extends Equatable {
   final int secondsSinceEpoch;
   final String timezone;
-  
-  GitCommitTimestamp({
-    @required this.secondsSinceEpoch,
-    @required this.timezone
-  }) {
+
+  GitCommitTimestamp({@required this.secondsSinceEpoch, @required this.timezone}) {
     var exception = GitException('incorrect timezone format');
-    if (
-      !['+', '-'].contains(timezone[0]) ||
-      timezone.length != 5 ||
-      int.tryParse(timezone) == null
-    ) throw exception;
+    if (!['+', '-'].contains(timezone[0]) || timezone.length != 5 || int.tryParse(timezone) == null) throw exception;
   }
-  
+
   factory GitCommitTimestamp.fromDateTime(DateTime time) {
     var secondsSinceEpoch = time.millisecondsSinceEpoch ~/ 1000;
     var timezoneOffset = time.timeZoneOffset.abs();
@@ -31,15 +26,11 @@ class GitCommitTimestamp extends Equatable {
     var timezoneHours = timezoneOffset.inHours.toString().padLeft(2, '0');
     var timezoneMinutes = (timezoneOffset.inMinutes % 60).toString().padLeft(2, '0');
     var timezone = timezoneSign + timezoneHours + timezoneMinutes;
-    return GitCommitTimestamp(
-      secondsSinceEpoch: secondsSinceEpoch, 
-      timezone: timezone
-    );
+    return GitCommitTimestamp(secondsSinceEpoch: secondsSinceEpoch, timezone: timezone);
   }
 
   @override
   List<Object> get props => [secondsSinceEpoch, timezone];
-
 }
 
 class GitCommitUser extends Equatable {
@@ -47,21 +38,15 @@ class GitCommitUser extends Equatable {
   final String email;
   final GitCommitTimestamp timestamp;
 
-  GitCommitUser({
-    @required this.name,
-    @required this.email,
-    @required this.timestamp
-  });
+  GitCommitUser({@required this.name, @required this.email, @required this.timestamp});
 
   String serialize() => '$name <$email> ${timestamp.secondsSinceEpoch} ${timestamp.timezone}';
 
   @override
   List<Object> get props => [name, email, timestamp];
-
 }
 
 class GitCommit extends GitObject with EquatableMixin {
-
   DateTime time = DateTime.now();
   GitHash treeHash;
   GitHash parentHash;
@@ -73,7 +58,7 @@ class GitCommit extends GitObject with EquatableMixin {
     var content = super.getContent(data);
     try {
       var lines = ascii.decode(content).split('\n');
-      var separatorIndex = lines.indexOf(''); // empty line separating commit info and message
+      var separatorIndex = lines.indexOf(''); // index of empty line separating commit info and message
       if (separatorIndex == -1) throw Exception;
 
       String _trimEmail(String email) {
@@ -100,7 +85,7 @@ class GitCommit extends GitObject with EquatableMixin {
             var timestamp = GitCommitTimestamp(secondsSinceEpoch: int.parse(split[2]), timezone: split[3]);
             var user = GitCommitUser(name: name, email: email, timestamp: timestamp);
             if (identifier == 'author') author = user;
-            else if (identifier == 'committer') committer = user;
+            if (identifier == 'committer') committer = user;
             break;
         }
       });
@@ -111,26 +96,24 @@ class GitCommit extends GitObject with EquatableMixin {
     }
   }
 
-  GitCommit.fromTree(GitTree tree, String this.message, GitConfig config, {GitHash this.parentHash}) {
-    this.treeHash = tree.hash;
-    var timestamp = GitCommitTimestamp.fromDateTime(DateTime.now());
+  GitCommit.fromTree(GitTree tree, this.message, GitConfig config, {this.parentHash}) {
+    treeHash = tree.hash;
     var section = config.getSection('user');
-    var user = GitCommitUser(
-      name: section.getRaw('name'),
-      email: section.getRaw('email'),
-      timestamp: timestamp
-    );
-    this.author = user;
-    this.committer = user;
+    var name = section.getRaw('name') as String;
+    var email = section.getRaw('email') as String;
+    var timestamp = GitCommitTimestamp.fromDateTime(DateTime.now());
+    var user = GitCommitUser(name: name, email: email, timestamp: timestamp);
+    author = user;
+    committer = user;
   }
 
   @override
   Uint8List serializeContent() {
     var lines = <String>[];
-    lines.add('tree ${this.treeHash}');
-    if (this.parentHash != null) lines.add('parent ${this.parentHash}');
-    lines.add('author ${this.author.serialize()}');
-    lines.add('committer ${this.committer.serialize()}');
+    lines.add('tree $treeHash');
+    if (parentHash != null) lines.add('parent $parentHash');
+    lines.add('author ${author.serialize()}');
+    lines.add('committer ${committer.serialize()}');
     lines.add('');
     lines.add(message);
     return ascii.encode(lines.join('\n') + '\n');
@@ -141,5 +124,4 @@ class GitCommit extends GitObject with EquatableMixin {
 
   @override
   List<Object> get props => [treeHash, parentHash, author, committer, message];
-
 }

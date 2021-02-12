@@ -1,5 +1,6 @@
-import 'package:dart_git/src/plumbing/objects/blob.dart';
 import 'package:test/test.dart';
+
+import 'package:dart_git/src/plumbing/objects/blob.dart';
 import 'constants.dart' as c;
 import 'utils.dart';
 

@@ -1,8 +1,10 @@
 import 'dart:io';
+
+import 'package:path/path.dart' as p;
+
 import 'package:dart_git/src/exceptions.dart';
 import 'package:dart_git/src/git_hash.dart';
 import 'package:dart_git/src/git_repo.dart';
-import 'package:path/path.dart' as p;
 
 const _symbolicRefPrefix = 'ref:';
 const _refPrefix = 'refs/';
@@ -10,10 +12,7 @@ const _refHeadPrefix = _refPrefix + 'heads/';
 const _refTagPrefix = _refPrefix + 'tags/';
 const _refRemotePrefix = _refPrefix + 'remotes/';
 
-enum GitReferenceType {
-  hash,
-  symbolic
-}
+enum GitReferenceType { hash, symbolic }
 
 class GitReference {
   final GitReferenceType type;
@@ -25,7 +24,7 @@ class GitReference {
     return File(p.joinAll([repo.getGitDir().path] + _symbolicTarget.split('/')));
   }
 
-  bool isDetached() => (this.type == GitReferenceType.hash);
+  bool isDetached() => (type == GitReferenceType.hash);
   GitHash _detachedHash;
 
   GitHash readHash() {
@@ -34,13 +33,16 @@ class GitReference {
     var hash = targetFile.readAsStringSync();
     try {
       return GitHash(hash);
-    } catch(e) {
+    } catch (e) {
       throw BrokenReferenceException(_symbolicTarget);
     }
   }
 
-  GitReference._(GitReferenceType this.type, GitRepo this.repo, String this._symbolicTarget);
-  GitReference.fromHash(GitRepo this.repo, GitHash this._detachedHash) : this._symbolicTarget = null, this.type = GitReferenceType.hash;
+  GitReference._(this.type, this.repo, this._symbolicTarget);
+
+  GitReference.fromHash(this.repo, this._detachedHash)
+      : _symbolicTarget = null,
+        type = GitReferenceType.hash;
 
   factory GitReference.fromLink(GitRepo repo, String link) {
     var exception = InvalidGitReferenceException(link);
@@ -53,6 +55,8 @@ class GitReference {
   }
 
   bool isHead() => _symbolicTarget.startsWith(_refHeadPrefix);
+
   bool isTag() => _symbolicTarget.startsWith(_refTagPrefix);
+
   bool isRemote() => _symbolicTarget.startsWith(_refRemotePrefix);
 }

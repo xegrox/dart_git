@@ -2,22 +2,25 @@ import 'dart:math';
 import 'dart:typed_data';
 
 import 'package:buffer/buffer.dart';
-import 'package:dart_git/src/git_vlq_codec.dart';
 import 'package:test/test.dart';
 
+import 'package:dart_git/src/git_vlq_codec.dart';
+
 void main() {
-
   Uint8List binaryToUnit8List(String binaryString) {
-    List<int> decimalList = [];
+    var decimalList = <int>[];
     var byteBinaryList = binaryString.replaceAll(' ', '').split('');
-    if (byteBinaryList.length.remainder(8) != 0) throw Exception('Binary length must be a factor of 8, but was ${byteBinaryList.length}');
-
+    if ((byteBinaryList.length % 8) != 0) {
+      throw Exception('Binary length must be a factor of 8, but was ${byteBinaryList.length}');
+    }
     // Iterate through byte by byte
     for (var i = 0; i < byteBinaryList.length; i += 8) {
       var decimal = 0;
-      byteBinaryList.getRange(i, i+8).toList().reversed.toList().asMap().forEach((index, bitString) { // This is stupid
+      var bIndex = 0;
+      byteBinaryList.sublist(i, i + 8).reversed.toList().forEach((bitString) {
         var bit = int.parse(bitString);
-        decimal += bit * pow(2, index);
+        decimal += (bit * pow(2, bIndex)).toInt();
+        bIndex++;
       });
       decimalList.add(decimal);
     }

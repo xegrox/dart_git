@@ -36,7 +36,7 @@ class GitVLQCodec {
   final _lengthBits = 7;
 
   List<int> _intToBinary(int num) {
-    List<int> data = [];
+    var data = <int>[];
     var binaryString = num.toRadixString(2);
     binaryString.split('').forEach((bitString) {
       data.insert(0, int.parse(bitString));
@@ -49,7 +49,7 @@ class GitVLQCodec {
     if (binaryList.length != 8) throw Exception('Binary length must be 8, but was ${binaryList.length}');
     var byteInBinary = binaryList.reversed.toList();
     byteInBinary.asMap().forEach((index, bit) {
-      number += bit * pow(2, index);
+      number += (bit * pow(2, index)).toInt();
     });
     return number;
   }
@@ -67,21 +67,21 @@ class GitVLQCodec {
       // Prepend 7 bits then add the new 7 bits
       data = (data << _lengthBits) + (byte & _maskLength);
       // Calculate offset
-      offset += pow(2, _lengthBits * (numberOfBytes - 1));
+      offset += (pow(2, _lengthBits * (numberOfBytes - 1))).toInt();
     }
     return data + offset;
   }
 
   Uint8List encode(int num) {
     if (num < 0) throw UnimplementedError('Encoding of negative integers is not supported');
-    List<int> encodedData = [];
+    var encodedData = <int>[];
 
     // Calculate offset and number of bytes
     var maxValue = pow(2, 7); // Minus 1 to get the actual max value
     var numberOfBytes = 1;
     var offset = 0;
     while(num > (maxValue - 1)) {
-      offset += pow(2, _lengthBits * (numberOfBytes));
+      offset += (pow(2, _lengthBits * (numberOfBytes))).toInt();
       maxValue *= pow(2, 7);
       maxValue += offset;
       numberOfBytes++;
@@ -92,8 +92,8 @@ class GitVLQCodec {
     reader.add(bytes);
 
     // Calculate padding
-    List<int> padding = [];
-    int paddingCount = _lengthBits - reader.remainingLength.remainder(_lengthBits);
+    var padding = <int>[];
+    var paddingCount = (_lengthBits - reader.remainingLength.remainder(_lengthBits)).toInt();
     if (paddingCount == 7) paddingCount = 0; // No padding is needed if all 7 bits are used
     for (var i = 1; i <= paddingCount; i++) {
       padding.add(0);

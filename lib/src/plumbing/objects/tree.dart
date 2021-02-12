@@ -1,19 +1,17 @@
 import 'dart:convert';
 import 'dart:typed_data';
-import 'package:dart_git/src/exceptions.dart';
+
+import 'package:buffer/buffer.dart';
 import 'package:equatable/equatable.dart';
 import 'package:meta/meta.dart';
-import 'package:buffer/buffer.dart';
+
+import 'package:dart_git/src/exceptions.dart';
 import 'package:dart_git/src/git_hash.dart';
 import 'package:dart_git/src/plumbing/index.dart';
 import 'package:dart_git/src/plumbing/objects/object.dart';
 
 class GitTreeEntry extends Equatable {
-  GitTreeEntry({
-    @required this.mode,
-    @required this.path,
-    @required this.hash
-  });
+  GitTreeEntry({@required this.mode, @required this.path, @required this.hash});
 
   final String path;
   final GitFileMode mode;
@@ -24,7 +22,6 @@ class GitTreeEntry extends Equatable {
 }
 
 class GitTree extends GitObject with EquatableMixin {
-
   List<GitTreeEntry> entries;
 
   @override
@@ -38,9 +35,10 @@ class GitTree extends GitObject with EquatableMixin {
     try {
       while (reader.remainingLength != 0) {
         var modeInt = ascii.decode(_readUntil(reader, 32));
+        var mode = GitFileMode.parse(modeInt);
         var path = ascii.decode(_readUntil(reader, 0x00));
         var hash = GitHash.fromBytes(reader.read(20));
-        var entry = GitTreeEntry(mode: GitFileMode.parse(modeInt), path: path, hash: hash);
+        var entry = GitTreeEntry(mode: mode, path: path, hash: hash);
         entries.add(entry);
       }
     } catch (e) {
@@ -49,20 +47,16 @@ class GitTree extends GitObject with EquatableMixin {
   }
 
   GitTree.fromIndexEntries(List<GitIndexEntry> indexEntries) {
-    this.entries = [];
-    indexEntries.forEach((indexEntry) {
-      var entry = GitTreeEntry(
-        mode: indexEntry.mode,
-        path: indexEntry.path,
-        hash: indexEntry.hash
-      );
+    entries = [];
+    indexEntries.forEach((e) {
+      var entry = GitTreeEntry(mode: e.mode, path: e.path, hash: e.hash);
       entries.add(entry);
     });
   }
 
   @override
   Uint8List serializeContent() {
-    List<int> data = [];
+    var data = <int>[];
     entries.forEach((entry) {
       var mode = entry.mode.toString();
       var hash = entry.hash.bytes;
@@ -75,7 +69,6 @@ class GitTree extends GitObject with EquatableMixin {
 
   @override
   List<Object> get props => [entries];
-
 }
 
 Uint8List _readUntil(ByteDataReader reader, int r) {

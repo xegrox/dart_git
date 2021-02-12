@@ -11,8 +11,12 @@ dependencies:
   crypto: ^2.1.5
   path: ^1.7.0
   buffer: ^1.0.7
-  collection: ^1.14.13
   equatable: ^1.2.5
 
 dev_dependencies:
   test: ^1.15.7
+  pedantic: ^1.9.0
+  import_sorter: ^4.4.1
+
+import_sorter:
+  comments: false
