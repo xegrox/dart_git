@@ -24,13 +24,13 @@ void main() {
   });
 
   test('Test git add', () {
-    var name_1 = 'blob_1.txt';
-    var name_2 = 'blob_2.txt';
-    var name_3 = 'blob_3.txt';
+    final name_1 = 'blob_1.txt';
+    final name_2 = 'blob_2.txt';
+    final name_3 = 'blob_3.txt';
 
-    var file_1 = fixture(name_1).copySync(p.join(repo.dir.path, name_1));
-    var file_2 = fixture(name_2).copySync(p.join(repo.dir.path, name_2));
-    var file_3 = fixture(name_3).copySync(p.join(repo.dir.path, name_3));
+    final file_1 = fixture(name_1).copySync(p.join(repo.dir.path, name_1));
+    final file_2 = fixture(name_2).copySync(p.join(repo.dir.path, name_2));
+    final file_3 = fixture(name_3).copySync(p.join(repo.dir.path, name_3));
 
     repo.add(file_1);
     repo.add(file_2);
@@ -41,12 +41,13 @@ void main() {
     repo.add(file_2);
     repo.add(file_3);
 
-    var index = repo.readIndex();
+    final index = repo.readIndex();
     expect(index.entries.length, 3);
-    expect(index.entries[name_1].hash.toString(), hashes[name_1]);
-    expect(index.entries[name_2].hash.toString(), hashes[name_2]);
-    expect(index.entries[name_3].hash.toString(), hashes[name_3]);
+    expect(index.entries[name_1].hash, hashes[name_1]);
+    expect(index.entries[name_2].hash, hashes[name_2]);
+    expect(index.entries[name_3].hash, hashes[name_3]);
   });
+
 
   test(('Test git commit'), () {
     var config = repo.readConfig();
