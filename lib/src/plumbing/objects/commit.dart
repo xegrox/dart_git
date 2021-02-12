@@ -110,13 +110,15 @@ class GitCommit extends GitObject with EquatableMixin {
   @override
   Uint8List serializeContent() {
     var lines = <String>[];
+    var message = this.message;
+    if (!message.endsWith('\n')) message += '\n';
     lines.add('tree $treeHash');
     if (parentHash != null) lines.add('parent $parentHash');
     lines.add('author ${author.serialize()}');
     lines.add('committer ${committer.serialize()}');
     lines.add('');
     lines.add(message);
-    return ascii.encode(lines.join('\n') + '\n');
+    return ascii.encode(lines.join('\n'));
   }
 
   @override
