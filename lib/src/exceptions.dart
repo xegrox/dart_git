@@ -56,9 +56,10 @@ class BrokenReferenceException extends GitException {
 }
 
 class CorruptObjectException extends GitException {
+  final String objectName;
   final String hash;
-  CorruptObjectException(this.hash)
-      : super('fatal: object \'$hash\' is corrupt');
+  CorruptObjectException(this.objectName, this.hash)
+      : super('fatal: $objectName object \'$hash\' is corrupt');
 }
 
 class NothingToCommitException extends GitException {

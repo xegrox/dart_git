@@ -111,14 +111,23 @@ r'''
   GitObject readObject(GitObjectType type, GitHash hash) {
     var compressedData = _objectFileFromHash(hash).readAsBytesSync();
     var data = zlib.decode(compressedData);
-    switch(type) {
-      case GitObjectType.blob:
-        return GitBlob.fromBytes(data);
-      case GitObjectType.tree:
-        return GitTree.fromBytes(data);
-      case GitObjectType.commit:
-        return GitCommit.fromBytes(data);
+    GitObject object;
+    try {
+      switch (type) {
+        case GitObjectType.blob:
+          object = GitBlob.fromBytes(data);
+          break;
+        case GitObjectType.tree:
+          object = GitTree.fromBytes(data);
+          break;
+        case GitObjectType.commit:
+          object = GitCommit.fromBytes(data);
+          break;
+      }
+    } catch (e) {
+      throw CorruptObjectException(object.signature, hash.toString());
     }
+    return object;
   }
 
   writeObject(GitObject object) {
