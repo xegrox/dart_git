@@ -28,7 +28,7 @@ void main() {
   }
 
   test('Test git vlq encode', () {
-    var vlqCodec = GitVLQCodec();
+    var vlqCodec = GitVLQCodec(offset: true);
 
     var encoded_1 = vlqCodec.encode(0); // Min of 1-octet
     var encoded_2 = vlqCodec.encode(127); // Max of 1-octet
@@ -58,5 +58,28 @@ void main() {
     expect(vlqCodec.decode(reader), 16511);
     expect(vlqCodec.decode(reader), 16512);
     expect(vlqCodec.decode(reader), 2113663);
+
+    vlqCodec = GitVLQCodec(offset: false);
+
+    encoded_1 = vlqCodec.encode(0); // Min of 1-octet
+    encoded_2 = vlqCodec.encode(127); // Max of 1-octet
+    encoded_3 = vlqCodec.encode(0); // Min of 2-octet
+    encoded_4 = vlqCodec.encode(16383); // Max of 2-octet
+    encoded_5 = vlqCodec.encode(0); // Min of 3-octet
+    encoded_6 = vlqCodec.encode(2097151); // Max of 3-octet
+
+    reader.add(encoded_1);
+    reader.add(encoded_2);
+    reader.add(encoded_3);
+    reader.add(encoded_4);
+    reader.add(encoded_5);
+    reader.add(encoded_6);
+
+    expect(vlqCodec.decode(reader), 0);
+    expect(vlqCodec.decode(reader), 127);
+    expect(vlqCodec.decode(reader), 0);
+    expect(vlqCodec.decode(reader), 16383);
+    expect(vlqCodec.decode(reader), 0);
+    expect(vlqCodec.decode(reader), 2097151);
   });
 }

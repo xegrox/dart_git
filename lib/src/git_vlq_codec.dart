@@ -31,6 +31,9 @@ import 'package:buffer/buffer.dart';
 
 class GitVLQCodec {
 
+  final bool offset;
+  GitVLQCodec({this.offset = true});
+
   final _maskContinue = int.parse('10000000', radix: 2);
   final _maskLength = int.parse('01111111', radix: 2);
   final _lengthBits = 7;
@@ -67,7 +70,7 @@ class GitVLQCodec {
       // Prepend 7 bits then add the new 7 bits
       data = (data << _lengthBits) + (byte & _maskLength);
       // Calculate offset
-      offset += (pow(2, _lengthBits * (numberOfBytes - 1))).toInt();
+      if (this.offset) offset += (pow(2, _lengthBits * (numberOfBytes - 1))).toInt();
     }
     return data + offset;
   }
@@ -81,7 +84,7 @@ class GitVLQCodec {
     var numberOfBytes = 1;
     var offset = 0;
     while(num > (maxValue - 1)) {
-      offset += (pow(2, _lengthBits * (numberOfBytes))).toInt();
+      if (this.offset) offset += (pow(2, _lengthBits * (numberOfBytes))).toInt();
       maxValue *= pow(2, 7);
       maxValue += offset;
       numberOfBytes++;
