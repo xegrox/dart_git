@@ -30,9 +30,10 @@ import 'package:buffer/buffer.dart';
 //
 
 class GitVLQCodec {
-
   final bool offset;
-  GitVLQCodec({this.offset = true});
+  final Endian endian;
+
+  GitVLQCodec({this.offset = true, this.endian = Endian.big});
 
   final _maskContinue = int.parse('10000000', radix: 2);
   final _maskLength = int.parse('01111111', radix: 2);
@@ -42,7 +43,7 @@ class GitVLQCodec {
     var data = <int>[];
     var binaryString = num.toRadixString(2);
     binaryString.split('').forEach((bitString) {
-      data.insert(0, int.parse(bitString));
+      data.add(int.parse(bitString));
     });
     return data;
   }
@@ -67,8 +68,13 @@ class GitVLQCodec {
       numberOfBytes++;
       // If continue flag is 1, read the next byte
       byte = reader.readUint8();
-      // Prepend 7 bits then add the new 7 bits
-      data = (data << _lengthBits) + (byte & _maskLength);
+      // Append 7 bits then add the new 7 bits
+      var d = byte & _maskLength;
+      if (endian == Endian.big) {
+        data = (data << _lengthBits) | d;
+      } else if (endian == Endian.little) {
+        data = data | (d << _lengthBits * (numberOfBytes - 1));
+      }
       // Calculate offset
       if (this.offset) offset += (pow(2, _lengthBits * (numberOfBytes - 1))).toInt();
     }
@@ -83,14 +89,14 @@ class GitVLQCodec {
     var maxValue = pow(2, 7); // Minus 1 to get the actual max value
     var numberOfBytes = 1;
     var offset = 0;
-    while(num > (maxValue - 1)) {
+    while (num > (maxValue - 1)) {
       if (this.offset) offset += (pow(2, _lengthBits * (numberOfBytes))).toInt();
       maxValue *= pow(2, 7);
       maxValue += offset;
       numberOfBytes++;
     }
 
-    var reader = ByteDataReader(endian: Endian.little);
+    var reader = ByteDataReader();
     var bytes = _intToBinary(num - offset);
     reader.add(bytes);
 
@@ -103,7 +109,7 @@ class GitVLQCodec {
     }
 
     // Encode data
-    for(var i = 1; i <= numberOfBytes; i++) {
+    for (var i = 1; i <= numberOfBytes; i++) {
       List<int> data;
       if (reader.remainingLength != 0) {
         data = reader.read(_lengthBits - paddingCount);
@@ -111,9 +117,15 @@ class GitVLQCodec {
         // Add zero bits if all the bits have been read
         data = [0, 0, 0, 0, 0, 0, 0];
       }
-      var continueBit = (i < numberOfBytes) ? 1 : 0;
-      var byteInDecimal = _binaryToInt([continueBit] + padding + data);
-      encodedData.add(byteInDecimal);
+      if (endian == Endian.big) {
+        var continueBit = (i < numberOfBytes) ? 1 : 0;
+        var byteInDecimal = _binaryToInt([continueBit] + padding + data);
+        encodedData.add(byteInDecimal);
+      } else if (endian == Endian.little) {
+        var continueBit = (i == 1) ? 0 : 1;
+        var byteInDecimal = _binaryToInt([continueBit] + padding + data);
+        encodedData.insert(0, byteInDecimal);
+      }
       // Clear the padding after the first octet is added
       paddingCount = 0;
       padding = [];
