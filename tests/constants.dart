@@ -1,5 +1,7 @@
 import 'dart:io';
+
 import 'package:path/path.dart' as p;
+
 import 'package:dart_git/src/git_hash.dart';
 
 Directory rootDir = (p.basename(Directory.current.path) == 'test') ? Directory.current.parent : Directory.current;

@@ -1,11 +1,11 @@
 import 'dart:io';
 import 'dart:typed_data';
 
+import 'package:test/test.dart';
+
 import 'package:dart_git/src/plumbing/objects/blob.dart';
 import 'package:dart_git/src/plumbing/objects/commit.dart';
 import 'package:dart_git/src/plumbing/objects/tree.dart';
-import 'package:test/test.dart';
-
 import 'constants.dart';
 
 Uint8List stripHeader(Uint8List data) => data.sublist(data.indexOf(0x00) + 1);

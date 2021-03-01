@@ -1,6 +1,8 @@
 import 'dart:io';
-import 'package:dart_git/src/exceptions.dart';
+
 import 'package:http/http.dart' as http;
+
+import 'package:dart_git/src/exceptions.dart';
 
 class GitClone {
   final Directory dir;

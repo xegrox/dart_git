@@ -1,8 +1,8 @@
+import 'package:test/test.dart';
+
 import 'package:dart_git/src/git_hash.dart';
 import 'package:dart_git/src/plumbing/pack_file.dart';
 import 'package:dart_git/src/plumbing/pack_file_idx.dart';
-import 'package:test/test.dart';
-
 import 'constants.dart';
 
 abstract class objOffsets {
@@ -19,7 +19,6 @@ void main() {
   test('Test git pack index v2 [read]', () {
     var idxFile = fixture('pack_index_v2.idx');
     var idx = GitPackFileIdx.fromBytes(idxFile.readAsBytesSync());
-
 
     var ofs_commit_1 = idx.getOffset(TestObjHashes.commit_1);
     var ofs_commit_2 = idx.getOffset(TestObjHashes.commit_2);

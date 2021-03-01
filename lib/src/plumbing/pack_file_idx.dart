@@ -1,6 +1,7 @@
 import 'dart:typed_data';
 
 import 'package:buffer/buffer.dart';
+
 import 'package:dart_git/src/exceptions.dart';
 import 'package:dart_git/src/git_hash.dart';
 

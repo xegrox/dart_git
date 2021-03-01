@@ -5,8 +5,8 @@ import 'package:buffer/buffer.dart';
 import 'package:equatable/equatable.dart';
 import 'package:meta/meta.dart';
 
-import 'package:dart_git/src/exceptions.dart';
 import 'package:dart_git/src/binary_utils.dart';
+import 'package:dart_git/src/exceptions.dart';
 import 'package:dart_git/src/git_hash.dart';
 import 'package:dart_git/src/git_vlq_codec.dart';
 
