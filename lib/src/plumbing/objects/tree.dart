@@ -2,10 +2,11 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:buffer/buffer.dart';
+import 'package:dart_git/src/exceptions.dart';
 import 'package:equatable/equatable.dart';
 import 'package:meta/meta.dart';
 
-import 'package:dart_git/src/exceptions.dart';
+import 'package:dart_git/src/binary_utils.dart';
 import 'package:dart_git/src/git_hash.dart';
 import 'package:dart_git/src/plumbing/index.dart';
 import 'package:dart_git/src/plumbing/objects/object.dart';
@@ -28,21 +29,23 @@ class GitTree extends GitObject with EquatableMixin {
   String get signature => 'tree';
 
   GitTree.fromBytes(Uint8List data) {
-    var content = super.getContent(data);
+    if (data.isEmpty) {
+      throw GitObjectException('Invalid tree format; data is empty');
+    }
     entries = [];
     var reader = ByteDataReader();
-    reader.add(content);
+    reader.add(data);
     try {
       while (reader.remainingLength != 0) {
-        var modeInt = ascii.decode(_readUntil(reader, 32));
+        var modeInt = ascii.decode(reader.readUntil(32));
         var mode = GitFileMode.parse(modeInt);
-        var path = ascii.decode(_readUntil(reader, 0x00));
+        var path = ascii.decode(reader.readUntil(0x00));
         var hash = GitHash.fromBytes(reader.read(20));
         var entry = GitTreeEntry(mode: mode, path: path, hash: hash);
         entries.add(entry);
       }
     } catch (e) {
-      throw GitException('invalid tree object format');
+      throw GitObjectException('Invalid tree format');
     }
   }
 
@@ -69,15 +72,4 @@ class GitTree extends GitObject with EquatableMixin {
 
   @override
   List<Object> get props => [entries];
-}
-
-Uint8List _readUntil(ByteDataReader reader, int r) {
-  var l = <int>[];
-  while (true) {
-    var c = reader.readUint8();
-    if (c == r) {
-      return Uint8List.fromList(l);
-    }
-    l.add(c);
-  }
 }

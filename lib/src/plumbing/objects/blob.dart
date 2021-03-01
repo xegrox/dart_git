@@ -8,13 +8,9 @@ class GitBlob extends GitObject with EquatableMixin {
   Uint8List content;
 
   @override
-  String get signature => 'blob';
+  String get signature => GitObjectSignature.blob;
 
-  GitBlob.fromBytes(Uint8List data) {
-    content = super.getContent(data);
-  }
-
-  GitBlob.fromContent(this.content);
+  GitBlob.fromBytes(this.content);
 
   @override
   Uint8List serializeContent() => content;

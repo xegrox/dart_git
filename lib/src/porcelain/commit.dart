@@ -18,8 +18,8 @@ extension Commit on GitRepo {
     GitHash parentHash;
     if (refTarget.existsSync()) {
       parentHash = head.readHash();
-      var parentCommit = readObject(GitObjectType.commit, parentHash) as GitCommit;
-      var parentTree = readObject(GitObjectType.tree, parentCommit.treeHash) as GitTree;
+      var parentCommit = readObject(parentHash) as GitCommit;
+      var parentTree = readObject(parentCommit.treeHash) as GitTree;
       if (parentTree == tree) throw NothingToCommitException();
     } else if (indexEntryList.isEmpty) throw NothingToCommitException();
 
@@ -28,7 +28,6 @@ extension Commit on GitRepo {
 
     writeObject(tree);
     writeObject(commit);
-    readObject(GitObjectType.commit, commit.hash);
     refTarget.createSync();
     refTarget.writeAsStringSync(commit.hash.toString());
   }

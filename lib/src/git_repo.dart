@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 
@@ -13,14 +14,12 @@ import 'package:dart_git/src/plumbing/objects/object.dart';
 import 'package:dart_git/src/plumbing/objects/tree.dart';
 import 'package:dart_git/src/plumbing/reference.dart';
 
-enum GitObjectType { blob, tree, commit }
-
 class GitRepo {
   GitRepo(this.dir) {
     validate();
   }
 
-  Directory dir;
+  final Directory dir;
 
   Directory getGitDir() => Directory(p.join(dir.path, '.git'));
 
@@ -34,8 +33,7 @@ class GitRepo {
     }
   }
 
-  GitRepo.init(Directory dir, {bool bare = false}) {
-    this.dir = dir;
+  GitRepo.init(this.dir, {bool bare = false}) {
     var gitDir = bare ? dir : Directory(p.join(dir.path, '.git'));
 
     gitDir.createSync();
@@ -107,26 +105,41 @@ class GitRepo {
     return File(p.join(dir.path, h.substring(2, h.length)));
   }
 
-  GitObject readObject(GitObjectType type, GitHash hash) {
+  GitObject readObject(GitHash hash) {
     var compressedData = _objectFileFromHash(hash).readAsBytesSync();
     var data = Uint8List.fromList(zlib.decode(compressedData));
-    GitObject object;
-    try {
-      switch (type) {
-        case GitObjectType.blob:
-          object = GitBlob.fromBytes(data);
-          break;
-        case GitObjectType.tree:
-          object = GitTree.fromBytes(data);
-          break;
-        case GitObjectType.commit:
-          object = GitCommit.fromBytes(data);
-          break;
-      }
-    } catch (e) {
-      throw CorruptObjectException(object.signature, hash.toString());
+
+    var headerLength = data.indexOf(0x00);
+    if (headerLength == -1) throw GitObjectException('Missing header');
+    var header = ascii.decode(data.sublist(0, data.indexOf(0x00)));
+
+    var split = header.split(' ');
+
+    var signature = split[0];
+    if (split.length != 2) throw GitObjectException('Invalid header $header');
+    if (signature != GitObjectSignature.commit &&
+        signature != GitObjectSignature.tree &&
+        signature != GitObjectSignature.blob) {
+      throw GitObjectException('Invalid header signature \'$signature\'');
     }
-    return object;
+
+    var content = data.sublist(headerLength + 1);
+    var cLength = int.tryParse(split[1]);
+    if (cLength == null) throw GitObjectException('Invalid length \'$cLength\'');
+    if (content.length != cLength) {
+      throw GitObjectException('Invalid length \'$cLength\' does not match actual length \'${content.length}\'');
+    }
+
+    switch (signature) {
+      case GitObjectSignature.commit:
+        return GitCommit.fromBytes(content);
+      case GitObjectSignature.tree:
+        return GitTree.fromBytes(content);
+      case GitObjectSignature.blob:
+        return GitBlob.fromBytes(content);
+      default:
+        throw GitObjectException('Invalid header signature \'$signature\'');
+    }
   }
 
   void writeObject(GitObject object) {

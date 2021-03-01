@@ -6,6 +6,7 @@ import 'package:equatable/equatable.dart';
 import 'package:meta/meta.dart';
 
 import 'package:dart_git/src/exceptions.dart';
+import 'package:dart_git/src/binary_utils.dart';
 import 'package:dart_git/src/git_hash.dart';
 import 'package:dart_git/src/git_vlq_codec.dart';
 
@@ -44,6 +45,8 @@ class GitIndexEntry {
       this.extended = false,
       this.skipWorkTree = false,
       this.intentToAdd = false});
+
+  final _vlqCodec = GitVLQCodec(offset: true);
 
   GitIndexEntry.fromBytes(ByteDataReader reader, String previousEntryPath, int indexVersion) {
     version = indexVersion;
@@ -98,9 +101,9 @@ class GitIndexEntry {
         // 2) The current path is found by reading until we reach a nul byte.
         // 3) Remove N bytes from the path of the previous entry.
         // 4) Prepend it to the current path to obtain the full path
-        var l = GitVLQCodec().decode(reader);
+        var l = _vlqCodec.decode(reader);
         var prefix = previousEntryPath == null ? '' : previousEntryPath.substring(0, previousEntryPath.length - l);
-        var name = _readUntil(reader, 0x00);
+        var name = reader.readUntil(0x00);
         path = prefix + utf8.decode(name);
         break;
     }
@@ -151,7 +154,7 @@ class GitIndexEntry {
         break;
       case 4:
         var prefix = '';
-        var vlqLengthToRemove = GitVLQCodec().encode(0);
+        var vlqLengthToRemove = _vlqCodec.encode(0);
 
         if (previousEntryPath.isNotEmpty) {
           for (var i = 0; i < path.length; i++) {
@@ -163,7 +166,7 @@ class GitIndexEntry {
           }
         }
         var name = path.substring(prefix.length, path.length) + '\x00';
-        vlqLengthToRemove = GitVLQCodec().encode(previousEntryPath.length - prefix.length);
+        vlqLengthToRemove = _vlqCodec.encode(previousEntryPath.length - prefix.length);
         writer.write(vlqLengthToRemove);
         writer.write(ascii.encode(name));
         break;
@@ -190,7 +193,7 @@ class GitIndex {
     var reader = ByteDataReader(endian: Endian.big);
     reader.add(data);
     var sig = ascii.decode(reader.read(4));
-    if (sig != _signature || sig.length < 4) {
+    if (sig != _signature) {
       throw GitIndexException('Invalid signature $sig');
     }
     version = reader.readUint32();
@@ -204,6 +207,7 @@ class GitIndex {
       previousEntryPath = entry.path;
       entries[entry.path] = entry;
     }
+    // TODO: support cached tree extension
   }
 
   Uint8List serialize() {
@@ -274,15 +278,4 @@ class GitTimestamp {
   final int nanoSeconds;
 
   GitTimestamp({@required this.dateTime, @required this.seconds, @required this.nanoSeconds});
-}
-
-Uint8List _readUntil(ByteDataReader reader, int r) {
-  var l = <int>[];
-  while (true) {
-    var c = reader.readUint8();
-    if (c == r) {
-      return Uint8List.fromList(l);
-    }
-    l.add(c);
-  }
 }

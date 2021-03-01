@@ -14,7 +14,7 @@ extension Add on GitRepo {
     var index = readIndex();
 
     var content = file.readAsBytesSync();
-    var blob = GitBlob.fromContent(content);
+    var blob = GitBlob.fromBytes(content);
     writeObject(blob);
 
     var stat = file.statSync();

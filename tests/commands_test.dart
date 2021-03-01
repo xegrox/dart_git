@@ -6,7 +6,6 @@ import 'package:test/test.dart';
 import 'package:dart_git/dart_git.dart';
 import 'package:dart_git/src/exceptions.dart';
 import 'constants.dart';
-import 'utils.dart';
 
 void main() {
   Directory sandboxDir;
@@ -43,11 +42,10 @@ void main() {
 
     final index = repo.readIndex();
     expect(index.entries.length, 3);
-    expect(index.entries[name_1].hash, hashes[name_1]);
-    expect(index.entries[name_2].hash, hashes[name_2]);
-    expect(index.entries[name_3].hash, hashes[name_3]);
+    expect(index.entries[name_1].hash, TestObjHashes.blob_1);
+    expect(index.entries[name_2].hash, TestObjHashes.blob_2);
+    expect(index.entries[name_3].hash, TestObjHashes.blob_3);
   });
-
 
   test(('Test git commit'), () {
     var config = repo.readConfig();

@@ -15,8 +15,9 @@ class GitCommitTimestamp extends Equatable {
   final String timezone;
 
   GitCommitTimestamp({@required this.secondsSinceEpoch, @required this.timezone}) {
-    var exception = GitException('incorrect timezone format');
-    if (!['+', '-'].contains(timezone[0]) || timezone.length != 5 || int.tryParse(timezone) == null) throw exception;
+    if (!['+', '-'].contains(timezone[0]) || timezone.length != 5 || int.tryParse(timezone) == null) {
+      GitObjectException('Invalid commit format; invalid timezone format \'$timezone\'');
+    }
   }
 
   factory GitCommitTimestamp.fromDateTime(DateTime time) {
@@ -54,49 +55,62 @@ class GitCommit extends GitObject with EquatableMixin {
   GitCommitUser committer;
   String message;
 
+  @override
+  String get signature => 'commit';
+
   GitCommit.fromBytes(Uint8List data) {
-    var content = super.getContent(data);
-    try {
-      var lines = ascii.decode(content).split('\n');
-      var separatorIndex = lines.indexOf(''); // index of empty line separating commit info and message
-      if (separatorIndex == -1) throw Exception;
-
-      String _trimEmail(String email) {
-        if (!email.startsWith('<') || !email.endsWith('>')) throw Exception;
-        return email.substring(1, email.length - 1);
-      }
-
-      var header = lines.sublist(0, separatorIndex);
-      header.forEach((line) {
-        var identifier = line.substring(0, line.indexOf(' '));
-        var value = line.substring(line.indexOf(' ') + 1, line.length);
-        switch (identifier) {
-          case 'tree':
-            treeHash = GitHash(value);
-            break;
-          case 'parent':
-            parentHash = GitHash(value);
-            break;
-          case 'author':
-          case 'committer':
-            var split = value.split(' ');
-            var name = split[0];
-            var email = _trimEmail(split[1]);
-            var timestamp = GitCommitTimestamp(secondsSinceEpoch: int.parse(split[2]), timezone: split[3]);
-            var user = GitCommitUser(name: name, email: email, timestamp: timestamp);
-            if (identifier == 'author') author = user;
-            if (identifier == 'committer') committer = user;
-            break;
-        }
-      });
-      if ([treeHash, author, committer].contains(null)) throw Exception;
-      message = lines.sublist(separatorIndex + 1).join('\n');
-    } catch (e) {
-      throw GitException('invalid commit object format');
+    if (data.isEmpty) {
+      throw GitObjectException('Invalid commit format; data is empty');
     }
+    var lines = ascii.decode(data).split('\n');
+    if (lines.last.isEmpty) lines.removeLast(); // Last line is empty because of trailing newline
+    var separatorIndex = lines.indexOf(''); // index of empty line separating commit info and message
+    if (separatorIndex == -1) {
+      throw GitObjectException('Invalid commit format; missing newline between header and message');
+    }
+
+    String _trimEmail(String email) {
+      if (!email.startsWith('<') || !email.endsWith('>')) {
+        throw GitObjectException('Invalid commit format; $email missing angle brackets');
+      }
+      return email.substring(1, email.length - 1);
+    }
+
+    var header = lines.sublist(0, separatorIndex);
+    header.forEach((line) {
+      var identifier = line.substring(0, line.indexOf(' '));
+      var value = line.substring(line.indexOf(' ') + 1, line.length);
+      switch (identifier) {
+        case 'tree':
+          treeHash = GitHash(value);
+          break;
+        case 'parent':
+          parentHash = GitHash(value);
+          break;
+        case 'author':
+        case 'committer':
+          var split = value.split(' ');
+          if (split.length != 4) {
+            throw GitObjectException('Invalid commit format; invalid user format \'$value\'');
+          }
+          var name = split[0];
+          var email = _trimEmail(split[1]);
+          var timestamp = GitCommitTimestamp(secondsSinceEpoch: int.parse(split[2]), timezone: split[3]);
+          var user = GitCommitUser(name: name, email: email, timestamp: timestamp);
+          if (identifier == 'author') author = user;
+          if (identifier == 'committer') committer = user;
+          break;
+        default:
+          throw GitObjectException('Invalid line \'$line\'');
+      }
+    });
+    if ([treeHash, author, committer].contains(null)) {
+      throw GitObjectException('Invalid commit format; missing info for tree, author or committer');
+    }
+    message = lines.sublist(separatorIndex + 1).join('\n');
   }
 
-  GitCommit.fromTree(GitTree tree, this.message, GitConfig config, {this.parentHash}) {
+  GitCommit.fromTree(GitTree tree, String message, GitConfig config, {this.parentHash}) {
     treeHash = tree.hash;
     var section = config.getSection('user');
     var name = section.getRaw('name') as String;
@@ -105,24 +119,20 @@ class GitCommit extends GitObject with EquatableMixin {
     var user = GitCommitUser(name: name, email: email, timestamp: timestamp);
     author = user;
     committer = user;
+    this.message = (message.endsWith('\n')) ? message.substring(message.length - 1) : message;
   }
 
   @override
   Uint8List serializeContent() {
     var lines = <String>[];
-    var message = this.message;
-    if (!message.endsWith('\n')) message += '\n';
     lines.add('tree $treeHash');
     if (parentHash != null) lines.add('parent $parentHash');
     lines.add('author ${author.serialize()}');
     lines.add('committer ${committer.serialize()}');
     lines.add('');
-    lines.add(message);
-    return ascii.encode(lines.join('\n'));
+    if (message.isNotEmpty) lines.add(message);
+    return ascii.encode(lines.join('\n') + '\n');
   }
-
-  @override
-  String get signature => 'commit';
 
   @override
   List<Object> get props => [treeHash, parentHash, author, committer, message];
