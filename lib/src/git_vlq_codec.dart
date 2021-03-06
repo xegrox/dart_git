@@ -41,25 +41,6 @@ class GitVLQCodec {
   final _maskLength = int.parse('01111111', radix: 2);
   final _lengthBits = 7;
 
-  List<int> _intToBinary(int num) {
-    var data = <int>[];
-    var binaryString = num.toRadixString(2);
-    binaryString.split('').forEach((bitString) {
-      data.add(int.parse(bitString));
-    });
-    return data;
-  }
-
-  int _binaryToInt(List<int> binaryList) {
-    var number = 0;
-    if (binaryList.length != 8) throw Exception('Binary length must be 8, but was ${binaryList.length}');
-    var byteInBinary = binaryList.reversed.toList();
-    byteInBinary.asMap().forEach((index, bit) {
-      number += (bit * pow(2, index)).toInt();
-    });
-    return number;
-  }
-
   int decode(ByteDataReader reader) {
     if (reader.endian != Endian.big) throw GitException('Reader endianness must be big');
     var byte = reader.readUint8();
@@ -86,52 +67,47 @@ class GitVLQCodec {
 
   Uint8List encode(int num) {
     if (num < 0) throw UnimplementedError('Encoding of negative integers is not supported');
-    var encodedData = <int>[];
 
-    // Calculate offset and number of bytes
-    var maxValue = pow(2, 7); // Minus 1 to get the actual max value
+    // Calculate offset and number of bytes for the vlq
+    var maxValue = pow(2, 7).toInt(); // Zero inclusive
     var numberOfBytes = 1;
     var offset = 0;
     while (num > (maxValue - 1)) {
-      if (this.offset) offset += (pow(2, _lengthBits * (numberOfBytes))).toInt();
-      maxValue *= pow(2, 7);
+      if (this.offset) offset = maxValue;
+      maxValue *= pow(2, 7).toInt();
       maxValue += offset;
       numberOfBytes++;
     }
 
-    var reader = ByteDataReader();
-    var bytes = _intToBinary(num - offset);
-    reader.add(bytes);
+    var genNum = num - offset; // Number exclusive of offset
 
     // Calculate padding
-    var padding = <int>[];
-    var paddingCount = (_lengthBits - reader.remainingLength.remainder(_lengthBits)).toInt();
-    if (paddingCount == 7) paddingCount = 0; // No padding is needed if all 7 bits are used
-    for (var i = 1; i <= paddingCount; i++) {
-      padding.add(0);
-    }
+    var paddingLength = _lengthBits - (genNum.bitLength % 7);
+    if (paddingLength == 7) paddingLength = 0; // No padding is needed if all 7 bits are used
 
     // Encode data
+    var mask = 0x7f;
+    mask >>= paddingLength;
+    mask <<= (genNum.bitLength - mask.bitLength).abs(); // Start from most significant bit
+
+    var encodedData = <int>[];
     for (var i = 1; i <= numberOfBytes; i++) {
-      List<int> data;
-      if (reader.remainingLength != 0) {
-        data = reader.read(_lengthBits - paddingCount);
-      } else {
-        // Add zero bits if all the bits have been read
-        data = [0, 0, 0, 0, 0, 0, 0];
-      }
+      // Read in big-endian order
+      var data = (genNum & mask); // Get next set of bits
+      data >>= (mask.bitLength - _lengthBits.abs()); // Trim trailing bits
+
+      mask >>= data.bitLength; // Shorten mask length
+      mask &= _maskLength << (mask.bitLength - _lengthBits).abs(); // Set most significant 7 bits
+
       if (endian == Endian.big) {
         var continueBit = (i < numberOfBytes) ? 1 : 0;
-        var byteInDecimal = _binaryToInt([continueBit] + padding + data);
-        encodedData.add(byteInDecimal);
+        data |= continueBit << _lengthBits;
+        encodedData.add(data);
       } else if (endian == Endian.little) {
         var continueBit = (i == 1) ? 0 : 1;
-        var byteInDecimal = _binaryToInt([continueBit] + padding + data);
-        encodedData.insert(0, byteInDecimal);
+        data |= continueBit << _lengthBits;
+        encodedData.insert(0, data);
       }
-      // Clear the padding after the first octet is added
-      paddingCount = 0;
-      padding = [];
     }
 
     return Uint8List.fromList(encodedData);

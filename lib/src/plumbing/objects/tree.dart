@@ -5,12 +5,23 @@ import 'package:buffer/buffer.dart';
 import 'package:equatable/equatable.dart';
 import 'package:meta/meta.dart';
 
-import 'package:dart_git/src/binary_utils.dart';
 import 'package:dart_git/src/exceptions.dart';
 import 'package:dart_git/src/git_hash.dart';
 import 'package:dart_git/src/plumbing/index.dart';
 import 'package:dart_git/src/plumbing/objects/object.dart';
 
+extension on ByteDataReader {
+  Uint8List readUntil(int r) {
+    var l = <int>[];
+    while (true) {
+      var c = readUint8();
+      if (c == r) {
+        return Uint8List.fromList(l);
+      }
+      l.add(c);
+    }
+  }
+}
 class GitTreeEntry extends Equatable {
   GitTreeEntry({@required this.mode, @required this.path, @required this.hash});
 

@@ -5,7 +5,6 @@ import 'package:buffer/buffer.dart';
 import 'package:equatable/equatable.dart';
 import 'package:meta/meta.dart';
 
-import 'package:dart_git/src/binary_utils.dart';
 import 'package:dart_git/src/exceptions.dart';
 import 'package:dart_git/src/git_hash.dart';
 import 'package:dart_git/src/git_vlq_codec.dart';
@@ -103,7 +102,15 @@ class GitIndexEntry {
         // 4) Prepend it to the current path to obtain the full path
         var l = _vlqCodec.decode(reader);
         var prefix = previousEntryPath == null ? '' : previousEntryPath.substring(0, previousEntryPath.length - l);
-        var name = reader.readUntil(0x00);
+        var name = <int>[];
+
+        // Read until 0x00
+        var c = reader.readUint8();
+        do {
+          name.add(c);
+          c = reader.readUint8();
+        } while(c != 0x00);
+
         path = prefix + utf8.decode(name);
         break;
     }
