@@ -68,6 +68,9 @@ class GitVLQCodec {
   Uint8List encode(int num) {
     if (num < 0) throw UnimplementedError('Encoding of negative integers is not supported');
 
+    // If num is only 7 bits long no processing is needed
+    if (num <= 127) return Uint8List.fromList([num]);
+
     // Calculate offset and number of bytes for the vlq
     var maxValue = pow(2, 7).toInt(); // Zero inclusive
     var numberOfBytes = 1;
@@ -85,18 +88,26 @@ class GitVLQCodec {
     var paddingLength = _lengthBits - (genNum.bitLength % 7);
     if (paddingLength == 7) paddingLength = 0; // No padding is needed if all 7 bits are used
 
+    // Example: 236 (0b11101100)
+    // +------------------+     +-----------------------------------+
+    // | 1  1 1 0 1 1 0 0 |  => | 1 0 0 0 0 0 0 1 | 0 1 1 0 1 1 0 0 |
+    // +------------------+     +-----------------------------------+
+    //  <-><------------->         <------------->   <------------->
+    //
+    // 1. The mask for the first set of bits is calculated by accounting for the padding length
+    // 2. The mask continues in multiples of 7
+
     // Encode data
     var mask = 0x7f;
-    mask >>= paddingLength;
-    mask <<= (genNum.bitLength - mask.bitLength).abs(); // Start from most significant bit
+    mask >>= paddingLength; // Obtain correct length of bits to read
+    mask <<= (genNum.bitLength - mask.bitLength).abs(); // Left shift the mask to the start
 
     var encodedData = <int>[];
     for (var i = 1; i <= numberOfBytes; i++) {
-      // Read in big-endian order
-      var data = (genNum & mask); // Get next set of bits
-      data >>= (mask.bitLength - _lengthBits.abs()); // Trim trailing bits
+      var data = (genNum & mask); // Read next set of bits
+      data >>= (mask.bitLength - _lengthBits).abs(); // Right shift to remove bits left by mask
 
-      mask >>= data.bitLength; // Shorten mask length
+      mask >>= data.bitLength; // Shorten mask length for next set of bits to read
       mask &= _maskLength << (mask.bitLength - _lengthBits).abs(); // Set most significant 7 bits
 
       if (endian == Endian.big) {

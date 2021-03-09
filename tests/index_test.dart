@@ -5,7 +5,7 @@ import 'constants.dart';
 
 void main() {
   void commonIndexReadTest(GitIndex index) {
-    var entries = index.entries.values.toList();
+    var entries = index.getEntries();
 
     expect(entries.length, 3);
 

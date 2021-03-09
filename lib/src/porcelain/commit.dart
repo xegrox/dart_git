@@ -11,8 +11,8 @@ extension Commit on GitRepo {
     var index = readIndex();
     var head = readHEAD();
     var refTarget = head.resolveTargetFile();
-    var indexEntryList = index.entries.values.toList();
-    var tree = GitTree.fromIndexEntries(indexEntryList);
+    var trees = index.computeTrees();
+    var rootTree = trees[''];
 
     // Check if there is anything to commit
     GitHash parentHash;
@@ -20,13 +20,15 @@ extension Commit on GitRepo {
       parentHash = head.readHash();
       var parentCommit = readObject(parentHash) as GitCommit;
       var parentTree = readObject(parentCommit.treeHash) as GitTree;
-      if (parentTree == tree) throw NothingToCommitException();
-    } else if (indexEntryList.isEmpty) throw NothingToCommitException();
+      if (parentTree == rootTree) throw NothingToCommitException();
+    } else if (trees.isEmpty) throw NothingToCommitException();
 
     var config = readConfig();
-    var commit = GitCommit.fromTree(tree, message, config, parentHash: parentHash);
+    var commit = GitCommit.fromTree(rootTree, message, config, parentHash: parentHash);
 
-    writeObject(tree);
+    trees.values.forEach((tree) {
+      writeObject(tree);
+    });
     writeObject(commit);
     refTarget.createSync();
     refTarget.writeAsStringSync(commit.hash.toString());

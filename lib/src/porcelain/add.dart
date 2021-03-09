@@ -85,7 +85,7 @@ extension Add on GitRepo {
         stage: GitFileStage(0),
         path: p.relative(file.path, from: dir.path));
 
-    index.entries[indexEntry.path] = indexEntry;
+    index.addEntry(indexEntry);
     writeIndex(index);
   }
 }

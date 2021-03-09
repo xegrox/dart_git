@@ -1,13 +1,18 @@
+import 'dart:collection';
 import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:buffer/buffer.dart';
 import 'package:equatable/equatable.dart';
 import 'package:meta/meta.dart';
+import 'package:path/path.dart' as p;
 
 import 'package:dart_git/src/exceptions.dart';
 import 'package:dart_git/src/git_hash.dart';
 import 'package:dart_git/src/git_vlq_codec.dart';
+import 'package:dart_git/src/plumbing/index_extensions.dart';
+import 'package:dart_git/src/plumbing/objects/tree.dart';
+import 'package:dart_git/src/plumbing/utils.dart';
 
 class GitIndexEntry {
   int version;
@@ -92,7 +97,9 @@ class GitIndexEntry {
       case 3:
         const nameMask = 0xfff;
         var len = flags & nameMask;
-        path = utf8.decode(reader.read(len));
+        path = (len == 0xfff) // If path len exceeds 0xfff then read until nul
+            ? utf8.decode(reader.readUntil(0x00))
+            : utf8.decode(reader.read(len));
         break;
       case 4:
         // In version 4 the path is truncated to reduce file size, relative to the previous path name.
@@ -102,15 +109,7 @@ class GitIndexEntry {
         // 4) Prepend it to the current path to obtain the full path
         var l = _vlqCodec.decode(reader);
         var prefix = previousEntryPath == null ? '' : previousEntryPath.substring(0, previousEntryPath.length - l);
-        var name = <int>[];
-
-        // Read until 0x00
-        var c = reader.readUint8();
-        do {
-          name.add(c);
-          c = reader.readUint8();
-        } while(c != 0x00);
-
+        var name = reader.readUntil(0x00);
         path = prefix + utf8.decode(name);
         break;
     }
@@ -161,7 +160,6 @@ class GitIndexEntry {
         break;
       case 4:
         var prefix = '';
-        var vlqLengthToRemove = _vlqCodec.encode(0);
 
         if (previousEntryPath.isNotEmpty) {
           for (var i = 0; i < path.length; i++) {
@@ -173,7 +171,7 @@ class GitIndexEntry {
           }
         }
         var name = path.substring(prefix.length, path.length) + '\x00';
-        vlqLengthToRemove = _vlqCodec.encode(previousEntryPath.length - prefix.length);
+        var vlqLengthToRemove = _vlqCodec.encode(previousEntryPath.length - prefix.length);
         writer.write(vlqLengthToRemove);
         writer.write(ascii.encode(name));
         break;
@@ -188,17 +186,50 @@ class GitIndexEntry {
   }
 }
 
+class _GitIndexEntryKey {
+  String path;
+  GitFileMode mode;
+
+  _GitIndexEntryKey(this.path, this.mode);
+
+  _GitIndexEntryKey.fromEntry(GitIndexEntry entry) {
+    path = entry.path;
+    mode = entry.mode;
+  }
+}
+
 class GitIndex {
-  Map<String, GitIndexEntry> entries = {};
+  final Map<_GitIndexEntryKey, GitIndexEntry> _entries = SplayTreeMap((a, b) {
+    // Index entries are sorted in ascending order on the name field,
+    // interpreted as a string of unsigned bytes (i.e. memcmp() order, no
+    // localization, no special casing of directory separator '/'). Entries
+    // with the same name are sorted by their stage field.
+    var cmpName = a.path.compareTo(b.path);
+    if (cmpName == 0) {
+      return a.mode.val.compareTo(b.mode.val);
+    } else {
+      return cmpName;
+    }
+  });
 
   final _signature = 'DIRC';
   int version;
+  GitHash hash;
 
-  GitIndex({@required this.entries, @required this.version});
+  var cachedTreeExtension = GitIdxExtCachedTree();
+
+  GitIndex(List<GitIndexEntry> entries, {this.version = 2}) {
+    entries.forEach((entry) {
+      var key = _GitIndexEntryKey.fromEntry(entry);
+      _entries[key] = entry;
+    });
+  }
 
   GitIndex.fromBytes(Uint8List data) {
     var reader = ByteDataReader(endian: Endian.big);
     reader.add(data);
+
+    // Header
     var sig = ascii.decode(reader.read(4));
     if (sig != _signature) {
       throw GitIndexException('Invalid signature $sig');
@@ -207,27 +238,99 @@ class GitIndex {
     if (version < 2 || version > 4) {
       throw GitIndexException('Version "$version" is unsupported; Only versions 2, 3 and 4 are supported');
     }
+
+    // Entries
     var numEntries = reader.readUint32();
     var previousEntryPath = '';
     for (var i = 0; i < numEntries; i++) {
       var entry = GitIndexEntry.fromBytes(reader, previousEntryPath, version);
       previousEntryPath = entry.path;
-      entries[entry.path] = entry;
+      var key = _GitIndexEntryKey.fromEntry(entry);
+      _entries[key] = entry;
     }
-    // TODO: support cached tree extension
+
+    // Extensions
+    while (reader.remainingLength != 20) {
+      var signature = ascii.decode(reader.read(4));
+      var len = reader.readUint32();
+      var data = reader.read(len);
+      var isOptional = signature.substring(0, 1).toUpperCase() == signature.substring(0, 1);
+
+      switch (signature) {
+        case 'TREE':
+          cachedTreeExtension = GitIdxExtCachedTree.fromBytes(data);
+          break;
+        default:
+          if (isOptional) {
+            reader.read(len);
+          } else {
+            throw GitIndexException('Unknown extension \'$signature\'');
+          }
+      }
+    }
+
+    // Hash checksum over contents
+    var genHash = GitHash.compute(data.sublist(0, data.length - 20));
+    hash = GitHash.fromBytes(reader.read(20));
+    if (genHash != hash) throw GitIndexException('Invalid file hash $genHash');
+  }
+
+  List<GitIndexEntry> getEntries() => _entries.values.toList();
+
+  void addEntry(GitIndexEntry entry) {
+    var key = _GitIndexEntryKey.fromEntry(entry);
+    var existingKey = _entries.containsKey(key);
+    _entries[key] = entry;
+    // Invalidate cached tree entry
+    if (existingKey) return;
+    var entryTreePath = p.dirname(entry.path);
+    if (entryTreePath == '.') entryTreePath = '';
+    cachedTreeExtension.getEntry(entryTreePath)?.invalidate();
+  }
+
+  void removeEntry(String path, GitFileMode mode) {
+    var key = _GitIndexEntryKey(path, mode);
+    var existingKey = _entries.containsKey(key);
+    _entries.remove(key);
+    // Invalidate cached tree entry
+    if (!existingKey) return;
+    var entryTreePath = p.dirname(path);
+    if (entryTreePath == '.') entryTreePath = '';
+    cachedTreeExtension.getEntry(entryTreePath)?.invalidate();
+  }
+
+  Map<String, GitTree> computeTrees() {
+    var treesMap = <String, GitTree>{};
+    _entries.forEach((key, entry) {
+      var name = p.basename(key.path);
+      var dir = p.dirname(key.path);
+      if (dir == '.') dir = ''; // Root tree path should be empty
+      var treeEntry = GitTreeEntry(mode: entry.mode, path: name, hash: entry.hash);
+      if (treesMap.containsKey(dir)) {
+        treesMap[dir].entries.add(treeEntry);
+      } else {
+        treesMap[dir] = GitTree([treeEntry]);
+      }
+    });
+    return treesMap;
   }
 
   Uint8List serialize() {
     var writer = ByteDataWriter(endian: Endian.big);
     writer.write(ascii.encode(_signature));
     writer.writeUint32(version);
-    writer.writeUint32(entries.length);
+    writer.writeUint32(_entries.length);
+
     var previousEntryPath = '';
-    entries.forEach((path, entry) {
+    _entries.forEach((path, entry) {
       var serialized = entry.serialize(previousEntryPath);
       previousEntryPath = entry.path;
       writer.write(serialized);
     });
+
+    // Write extensions
+    writer.write(cachedTreeExtension.serialize());
+
     var hash = GitHash.compute(writer.toBytes());
     writer.write(hash.bytes);
 
@@ -240,7 +343,7 @@ class GitFileMode extends Equatable {
 
   const GitFileMode(this.val);
 
-  static GitFileMode parse(String str) {
+  factory GitFileMode.parse(String str) {
     var val = int.parse(str, radix: 8);
     return GitFileMode(val);
   }

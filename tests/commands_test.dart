@@ -41,10 +41,11 @@ void main() {
     repo.add(file_3);
 
     final index = repo.readIndex();
-    expect(index.entries.length, 3);
-    expect(index.entries[name_1].hash, TestObjHashes.blob_1);
-    expect(index.entries[name_2].hash, TestObjHashes.blob_2);
-    expect(index.entries[name_3].hash, TestObjHashes.blob_3);
+    var entries = index.getEntries();
+    expect(entries.length, 3);
+    expect(entries[0].hash, TestObjHashes.blob_1);
+    expect(entries[1].hash, TestObjHashes.blob_2);
+    expect(entries[2].hash, TestObjHashes.blob_3);
   });
 
   test(('Test git commit'), () {

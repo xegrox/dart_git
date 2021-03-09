@@ -9,19 +9,8 @@ import 'package:dart_git/src/exceptions.dart';
 import 'package:dart_git/src/git_hash.dart';
 import 'package:dart_git/src/plumbing/index.dart';
 import 'package:dart_git/src/plumbing/objects/object.dart';
+import 'package:dart_git/src/plumbing/utils.dart';
 
-extension on ByteDataReader {
-  Uint8List readUntil(int r) {
-    var l = <int>[];
-    while (true) {
-      var c = readUint8();
-      if (c == r) {
-        return Uint8List.fromList(l);
-      }
-      l.add(c);
-    }
-  }
-}
 class GitTreeEntry extends Equatable {
   GitTreeEntry({@required this.mode, @required this.path, @required this.hash});
 
@@ -31,6 +20,15 @@ class GitTreeEntry extends Equatable {
 
   @override
   List<Object> get props => [path, mode, hash];
+
+  Uint8List serialize() {
+    var data = <int>[];
+    var fmt = '$mode $path';
+    data.addAll(ascii.encode(fmt));
+    data.add(0x00);
+    data.addAll(hash.bytes);
+    return Uint8List.fromList(data);
+  }
 }
 
 class GitTree extends GitObject with EquatableMixin {
@@ -38,6 +36,8 @@ class GitTree extends GitObject with EquatableMixin {
 
   @override
   String get signature => 'tree';
+
+  GitTree(this.entries);
 
   GitTree.fromBytes(Uint8List data) {
     if (data.isEmpty) {
@@ -60,23 +60,11 @@ class GitTree extends GitObject with EquatableMixin {
     }
   }
 
-  GitTree.fromIndexEntries(List<GitIndexEntry> indexEntries) {
-    entries = [];
-    indexEntries.forEach((e) {
-      var entry = GitTreeEntry(mode: e.mode, path: e.path, hash: e.hash);
-      entries.add(entry);
-    });
-  }
-
   @override
   Uint8List serializeContent() {
     var data = <int>[];
     entries.forEach((entry) {
-      var mode = entry.mode.toString();
-      var hash = entry.hash.bytes;
-      var fmt = '$mode ${entry.path}\x00';
-      data.addAll(ascii.encode(fmt));
-      data.addAll(hash);
+      data.addAll(entry.serialize());
     });
     return Uint8List.fromList(data);
   }

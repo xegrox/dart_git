@@ -91,8 +91,7 @@ class GitRepo {
     configFile.writeAsBytesSync(config.serialize());
   }
 
-  GitIndex readIndex() =>
-      (indexFile.existsSync()) ? GitIndex.fromBytes(indexFile.readAsBytesSync()) : GitIndex(entries: {}, version: 2);
+  GitIndex readIndex() => (indexFile.existsSync()) ? GitIndex.fromBytes(indexFile.readAsBytesSync()) : GitIndex([]);
 
   void writeIndex(GitIndex index) {
     if (!indexFile.existsSync()) indexFile.createSync();
