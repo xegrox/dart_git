@@ -9,7 +9,11 @@ class GitException implements Exception {
 
 class PathSpecOutsideRepoException extends GitException {
   PathSpecOutsideRepoException(String repoPath, String pathSpec)
-      : super("fatal: '$pathSpec' is outside repository at $repoPath");
+      : super('fatal: \'$pathSpec\' is outside repository at $repoPath');
+}
+
+class PathSpecNoMatchException extends GitException {
+  PathSpecNoMatchException(String pathSpec) : super('fatal: pathspec \'$pathSpec\' did not match any files');
 }
 
 class InvalidGitRepositoryException extends GitException {

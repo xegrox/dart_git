@@ -188,13 +188,13 @@ class GitIndexEntry {
 
 class _GitIndexEntryKey {
   String path;
-  GitFileMode mode;
+  GitFileStage stage;
 
-  _GitIndexEntryKey(this.path, this.mode);
+  _GitIndexEntryKey(this.path, this.stage);
 
   _GitIndexEntryKey.fromEntry(GitIndexEntry entry) {
     path = entry.path;
-    mode = entry.mode;
+    stage = entry.stage;
   }
 }
 
@@ -206,7 +206,7 @@ class GitIndex {
     // with the same name are sorted by their stage field.
     var cmpName = a.path.compareTo(b.path);
     if (cmpName == 0) {
-      return a.mode.val.compareTo(b.mode.val);
+      return a.stage.val.compareTo(b.stage.val);
     } else {
       return cmpName;
     }
@@ -277,24 +277,30 @@ class GitIndex {
 
   List<GitIndexEntry> getEntries() => _entries.values.toList();
 
-  void addEntry(GitIndexEntry entry) {
+  void setEntry(GitIndexEntry entry) {
+    if (p.isWithin(entry.path, '.git')) return;
     var key = _GitIndexEntryKey.fromEntry(entry);
-    var existingKey = _entries.containsKey(key);
+    var exists = _entries.containsKey(key);
     _entries[key] = entry;
+    if (exists) return;
     // Invalidate cached tree entry
-    if (existingKey) return;
     var entryTreePath = p.dirname(entry.path);
     extCachedTree.invalidateTree(entryTreePath);
   }
 
-  void removeEntry(String path, GitFileMode mode) {
-    var key = _GitIndexEntryKey(path, mode);
-    var existingKey = _entries.containsKey(key);
-    _entries.remove(key);
+  bool removeEntry(String path) {
+    var exists = false;
+    // Remove all staged
+    for (var i = 0; i <= 3; i++) {
+      var key = _GitIndexEntryKey(path, GitFileStage(i));
+      if (_entries.containsKey(key)) exists = true;
+      _entries.remove(key);
+    }
     // Invalidate cached tree entry
-    if (!existingKey) return;
+    if (!exists) return false;
     var entryTreePath = p.dirname(path);
     extCachedTree.invalidateTree(entryTreePath);
+    return true;
   }
 
   /// Returns the root tree object. Null if no index entries are present

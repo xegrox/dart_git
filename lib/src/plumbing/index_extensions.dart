@@ -86,7 +86,7 @@ class GitIdxExtCachedTree extends GitIndexExtension {
   void invalidateTree(String path) {
     var treePath = path;
     while (treePath != '.') {
-      getEntry(treePath).invalidate();
+      getEntry(treePath)?.invalidate();
       treePath = p.dirname(path);
     }
     getEntry('')?.invalidate(); // Invalidate root path
