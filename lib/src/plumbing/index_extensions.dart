@@ -4,6 +4,7 @@ import 'dart:typed_data';
 
 import 'package:buffer/buffer.dart';
 import 'package:meta/meta.dart';
+import 'package:path/path.dart' as p;
 
 import 'package:dart_git/src/git_hash.dart';
 import 'package:dart_git/src/plumbing/index.dart';
@@ -46,7 +47,7 @@ class GitIdxExtCachedTreeEntry {
 
   void invalidate() => numEntries = -1;
 
-  bool isInvalid() => numEntries.isNegative;
+  bool isValid() => !numEntries.isNegative;
 }
 
 class GitIdxExtCachedTree extends GitIndexExtension {
@@ -80,6 +81,15 @@ class GitIdxExtCachedTree extends GitIndexExtension {
       ext.addEntry(entry);
     });
     return ext;
+  }
+
+  void invalidateTree(String path) {
+    var treePath = path;
+    while (treePath != '.') {
+      getEntry(treePath).invalidate();
+      treePath = p.dirname(path);
+    }
+    getEntry('')?.invalidate(); // Invalidate root path
   }
 
   void addEntry(GitIdxExtCachedTreeEntry entry) => _entries[entry.path] = entry;

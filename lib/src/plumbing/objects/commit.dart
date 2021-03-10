@@ -110,7 +110,7 @@ class GitCommit extends GitObject with EquatableMixin {
     message = lines.sublist(separatorIndex + 1).join('\n');
   }
 
-  GitCommit.fromTree(GitTree tree, String message, GitConfig config, {this.parentHash}) {
+  GitCommit.fromTree(GitTree tree, String message, GitConfig config, [this.parentHash]) {
     treeHash = tree.hash;
     var section = config.getSection('user');
     var name = section.getRaw('name') as String;

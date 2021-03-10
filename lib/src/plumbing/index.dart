@@ -216,7 +216,7 @@ class GitIndex {
   int version;
   GitHash hash;
 
-  var cachedTreeExtension = GitIdxExtCachedTree();
+  var extCachedTree = GitIdxExtCachedTree();
 
   GitIndex(List<GitIndexEntry> entries, {this.version = 2}) {
     entries.forEach((entry) {
@@ -258,7 +258,7 @@ class GitIndex {
 
       switch (signature) {
         case 'TREE':
-          cachedTreeExtension = GitIdxExtCachedTree.fromBytes(data);
+          extCachedTree = GitIdxExtCachedTree.fromBytes(data);
           break;
         default:
           if (isOptional) {
@@ -284,8 +284,7 @@ class GitIndex {
     // Invalidate cached tree entry
     if (existingKey) return;
     var entryTreePath = p.dirname(entry.path);
-    if (entryTreePath == '.') entryTreePath = '';
-    cachedTreeExtension.getEntry(entryTreePath)?.invalidate();
+    extCachedTree.invalidateTree(entryTreePath);
   }
 
   void removeEntry(String path, GitFileMode mode) {
@@ -295,24 +294,54 @@ class GitIndex {
     // Invalidate cached tree entry
     if (!existingKey) return;
     var entryTreePath = p.dirname(path);
-    if (entryTreePath == '.') entryTreePath = '';
-    cachedTreeExtension.getEntry(entryTreePath)?.invalidate();
+    extCachedTree.invalidateTree(entryTreePath);
   }
 
-  Map<String, GitTree> computeTrees() {
-    var treesMap = <String, GitTree>{};
-    _entries.forEach((key, entry) {
+  /// Returns the root tree object. Null if no index entries are present
+  ///
+  /// onNewTree is called when the tree or its parent does not contain
+  /// a valid cache. The tree might not necessarily be modified
+  GitTree computeTrees([Function(GitTree tree) onNewTree]) {
+    var newTreesMap = <String, GitTree>{};
+    // This is stored with cached trees to prevent onNewTree calls for its subtrees
+    // Cached tree entries for these subtrees will still be added if it wasn't
+    var cachedTreePaths = <String>[];
+
+    for (var i = 0; i < _entries.length; i++) {
+      var key = _entries.keys.elementAt(i);
+      var entry = _entries.values.elementAt(i);
       var name = p.basename(key.path);
       var dir = p.dirname(key.path);
-      if (dir == '.') dir = ''; // Root tree path should be empty
+      if (dir == '.') dir = '';
+
+      // Skip generation of cached trees
+      if ((extCachedTree.getEntry(dir)?.isValid() ?? false)) {
+        cachedTreePaths.add(dir);
+        // We have to generate at least the root tree
+        if (dir != '') {
+          continue;
+        }
+      }
+
+      // Generate trees that have not been cached
       var treeEntry = GitTreeEntry(mode: entry.mode, path: name, hash: entry.hash);
-      if (treesMap.containsKey(dir)) {
-        treesMap[dir].entries.add(treeEntry);
+      if (newTreesMap.containsKey(dir)) {
+        newTreesMap[dir].entries.add(treeEntry);
       } else {
-        treesMap[dir] = GitTree([treeEntry]);
+        newTreesMap[dir] = GitTree([treeEntry]);
+      }
+    }
+
+    newTreesMap.forEach((dir, tree) {
+      // Cache these trees
+      var cachedEntry = GitIdxExtCachedTreeEntry.fromTree(dir, tree);
+      extCachedTree.addEntry(cachedEntry);
+      // Prevent unnecessary onNewTree calls
+      if (!cachedTreePaths.any((path) => dir.startsWith(path))) {
+        onNewTree(tree);
       }
     });
-    return treesMap;
+    return newTreesMap[''];
   }
 
   Uint8List serialize() {
@@ -329,7 +358,7 @@ class GitIndex {
     });
 
     // Write extensions
-    writer.write(cachedTreeExtension.serialize());
+    writer.write(extCachedTree.serialize());
 
     var hash = GitHash.compute(writer.toBytes());
     writer.write(hash.bytes);

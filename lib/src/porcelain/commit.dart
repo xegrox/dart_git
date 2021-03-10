@@ -11,24 +11,23 @@ extension Commit on GitRepo {
     var index = readIndex();
     var head = readHEAD();
     var refTarget = head.resolveTargetFile();
-    var trees = index.computeTrees();
-    var rootTree = trees[''];
+    var rootTree = index.computeTrees((tree) {
+      writeObject(tree);
+    });
 
     // Check if there is anything to commit
     GitHash parentHash;
-    if (refTarget.existsSync()) {
+    if (rootTree == null) {
+      throw NothingToCommitException();
+    } else if (refTarget.existsSync()) {
       parentHash = head.readHash();
       var parentCommit = readObject(parentHash) as GitCommit;
       var parentTree = readObject(parentCommit.treeHash) as GitTree;
       if (parentTree == rootTree) throw NothingToCommitException();
-    } else if (trees.isEmpty) throw NothingToCommitException();
+    }
 
     var config = readConfig();
-    var commit = GitCommit.fromTree(rootTree, message, config, parentHash: parentHash);
-
-    trees.values.forEach((tree) {
-      writeObject(tree);
-    });
+    var commit = GitCommit.fromTree(rootTree, message, config, parentHash);
     writeObject(commit);
     refTarget.createSync();
     refTarget.writeAsStringSync(commit.hash.toString());
