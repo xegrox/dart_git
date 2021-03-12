@@ -25,9 +25,7 @@ class GitIndexException extends GitException {
 }
 
 class GitPackFileException extends GitException {
-  final String msg;
-
-  GitPackFileException(this.msg) : super('fatal: pack file error: $msg');
+  GitPackFileException(String msg) : super('fatal: pack file error: $msg');
 }
 
 class GitPackIdxFileException extends GitException {

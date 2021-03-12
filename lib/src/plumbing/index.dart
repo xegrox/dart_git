@@ -288,16 +288,10 @@ class GitIndex {
     extCachedTree.invalidateTree(entryTreePath);
   }
 
-  bool removeEntry(String path) {
-    var exists = false;
-    // Remove all staged
-    for (var i = 0; i <= 3; i++) {
-      var key = _GitIndexEntryKey(path, GitFileStage(i));
-      if (_entries.containsKey(key)) exists = true;
-      _entries.remove(key);
-    }
+  bool removeEntry(String path, GitFileStage stage) {
+    var key = _GitIndexEntryKey(path, stage);
+    if (_entries.remove(key) == null) return false;
     // Invalidate cached tree entry
-    if (!exists) return false;
     var entryTreePath = p.dirname(path);
     extCachedTree.invalidateTree(entryTreePath);
     return true;

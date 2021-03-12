@@ -30,6 +30,7 @@ class GitReference {
   GitHash readHash() {
     if (type == GitReferenceType.hash) return _detachedHash;
     var targetFile = File(p.join(repo.getGitDir().path, _symbolicTarget));
+    if (!targetFile.existsSync()) return null;
     var hash = targetFile.readAsStringSync();
     try {
       return GitHash(hash);

@@ -22,45 +22,54 @@ void main() {
     expect(() => repo.commit(''), throwsA(TypeMatcher<NothingToCommitException>()));
   });
 
-  File file_1;
-  File file_2;
-  File file_3;
+  final path_spec_1 = 'blob_1.txt';
+  final path_spec_2 = 'blob_2.txt';
+  final path_spec_3 = 'blob_3.txt';
+  final path_spec_sub_dir = 'another';
+  final path_spec_sub_1 = '$path_spec_sub_dir/blob_1.txt';
+  final path_spec_sub_2 = '$path_spec_sub_dir/blob_2.txt';
+  final path_spec_sub_3 = '$path_spec_sub_dir/blob_3.txt';
 
   test('Test git add', () {
-    final blob_path_1 = 'blob_1.txt';
-    final blob_path_2 = 'blob_2.txt';
-    final blob_path_3 = 'blob_3.txt';
+    // Create files
+    Directory(p.join(repo.dir.path, path_spec_sub_dir)).create();
+    fixture(path_spec_1).copySync(p.join(repo.dir.path, path_spec_1));
+    fixture(path_spec_2).copySync(p.join(repo.dir.path, path_spec_2));
+    fixture(path_spec_3).copySync(p.join(repo.dir.path, path_spec_3));
+    fixture(path_spec_1).copySync(p.join(repo.dir.path, path_spec_sub_1));
+    fixture(path_spec_2).copySync(p.join(repo.dir.path, path_spec_sub_2));
+    fixture(path_spec_3).copySync(p.join(repo.dir.path, path_spec_sub_3));
 
-    file_1 = fixture(blob_path_1).copySync(p.join(repo.dir.path, blob_path_1));
-    file_2 = fixture(blob_path_2).copySync(p.join(repo.dir.path, blob_path_2));
-    file_3 = fixture(blob_path_3).copySync(p.join(repo.dir.path, blob_path_3));
+    // Non-existent file
+    expect(() => repo.add('dummy'), throwsA(TypeMatcher<PathSpecNoMatchException>()));
 
-    repo.add(file_2);
+    repo.add(path_spec_2);
     var entries = repo.readIndex().getEntries();
     expect(entries.length, 1);
-    expect(entries[0].hash, TestObjHashes.blob_2);
+    expect(entries[0].path, path_spec_2);
 
-    repo.add(repo.dir);
+    repo.add(path_spec_sub_dir);
     entries = repo.readIndex().getEntries();
-    expect(entries.length, 3);
-    expect(entries[0].hash, TestObjHashes.blob_1);
-    expect(entries[1].hash, TestObjHashes.blob_2);
-    expect(entries[2].hash, TestObjHashes.blob_3);
+    expect(entries.length, 4);
+    expect(entries[0].path, path_spec_sub_1);
+    expect(entries[1].path, path_spec_sub_2);
+    expect(entries[2].path, path_spec_sub_3);
+    expect(entries[3].path, path_spec_2);
 
-    // Repeat to ensure no extra entries are added
-    repo.add(file_1);
-    repo.add(file_2);
-    repo.add(file_3);
-
-    repo.add(repo.getGitDir()); // Should not do anything
+    repo.add('.');
     entries = repo.readIndex().getEntries();
-    expect(entries.length, 3);
-    expect(entries[0].hash, TestObjHashes.blob_1);
-    expect(entries[1].hash, TestObjHashes.blob_2);
-    expect(entries[2].hash, TestObjHashes.blob_3);
+    expect(entries.length, 6);
+    expect(entries[0].path, path_spec_sub_1);
+    expect(entries[1].path, path_spec_sub_2);
+    expect(entries[2].path, path_spec_sub_3);
+    expect(entries[3].path, path_spec_1);
+    expect(entries[4].path, path_spec_2);
+    expect(entries[5].path, path_spec_3);
 
-    var file_4 = File(p.join(repo.dir.path, 'test')); // Non existent file
-    expect(() => repo.add(file_4), throwsA(TypeMatcher<PathSpecNoMatchException>()));
+    repo.add('.git'); // Should not do anything
+    repo.add('.git/index');
+    entries = repo.readIndex().getEntries();
+    expect(entries.length, 6);
   });
 
   test(('Test git commit'), () {
@@ -74,25 +83,40 @@ void main() {
   });
 
   test(('Test git remove'), () {
-    // Remove from index only
-    repo.rm(file_2, cached: true);
+    // Non-existent entry
+    expect(() => repo.rm('dummy'), throwsA(TypeMatcher<PathSpecNoMatchException>()));
+
+    repo.rm(path_spec_1);
     var entries = repo.readIndex().getEntries();
-    expect(entries.length, 2);
-    expect(entries[0].hash, TestObjHashes.blob_1);
-    expect(entries[1].hash, TestObjHashes.blob_3);
-    expect(file_2.existsSync(), true);
+    expect(File(p.join(repo.dir.path, path_spec_1)).existsSync(), false);
+    expect(entries.length, 5);
+    expect(entries[0].path, path_spec_sub_1);
+    expect(entries[1].path, path_spec_sub_2);
+    expect(entries[2].path, path_spec_sub_3);
+    expect(entries[3].path, path_spec_2);
+    expect(entries[4].path, path_spec_3);
 
-    // Remove file and index entry
-    repo.rm(sandboxDir, cached: false);
+    repo.rm(path_spec_2, cached: true);
     entries = repo.readIndex().getEntries();
-    var contents = sandboxDir.listSync();
-    expect(contents.any((e) => e.path == repo.getGitDir().path), true);
-    expect(contents.any((e) => e.path == file_2.path), true);
-    expect(entries.length, 0);
+    expect(File(p.join(repo.dir.path, path_spec_2)).existsSync(), true);
+    expect(entries.length, 4);
+    expect(entries[0].path, path_spec_sub_1);
+    expect(entries[1].path, path_spec_sub_2);
+    expect(entries[2].path, path_spec_sub_3);
+    expect(entries[3].path, path_spec_3);
 
-    expect(() => repo.rm(file_1), throwsA(TypeMatcher<PathSpecNoMatchException>()));
-    expect(() => repo.rm(file_2), throwsA(TypeMatcher<PathSpecNoMatchException>()));
-    expect(() => repo.rm(file_3), throwsA(TypeMatcher<PathSpecNoMatchException>()));
+    Directory(p.join(repo.dir.path, path_spec_sub_dir)).deleteSync(recursive: true);
+    repo.rm(path_spec_sub_dir);
+    entries = repo.readIndex().getEntries();
+    expect(Directory(p.join(repo.dir.path, path_spec_sub_dir)).existsSync(), false);
+    expect(entries.length, 1);
+    expect(entries[0].path, path_spec_3);
+
+    repo.rm('.');
+    entries = repo.readIndex().getEntries();
+    expect(repo.dir.listSync().length, 2);
+    expect(File(p.join(repo.dir.path, path_spec_2)).existsSync(), true);
+    expect(entries.length, 0);
   });
 
   tearDownAll(() => sandboxDir.deleteSync(recursive: true));
