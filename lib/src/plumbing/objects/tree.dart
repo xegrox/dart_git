@@ -41,7 +41,7 @@ class GitTree extends GitObject with EquatableMixin {
 
   GitTree.fromBytes(Uint8List data) {
     if (data.isEmpty) {
-      throw GitObjectException('Invalid tree format; data is empty');
+      throw CorruptObjectException('Invalid tree format; data is empty');
     }
     entries = [];
     var reader = ByteDataReader();
@@ -56,7 +56,7 @@ class GitTree extends GitObject with EquatableMixin {
         entries.add(entry);
       }
     } catch (e) {
-      throw GitObjectException('Invalid tree format');
+      throw CorruptObjectException('Invalid tree format');
     }
   }
 

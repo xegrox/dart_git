@@ -47,16 +47,12 @@ class GitCommitCredentialsException extends GitException {
   GitCommitCredentialsException() : super('fatal: author credentials missing from config');
 }
 
-class InvalidGitReferenceException extends GitException {
-  InvalidGitReferenceException(String ref) : super('fatal: invalid git reference \'ref: $ref\'');
-}
-
 class BrokenReferenceException extends GitException {
-  BrokenReferenceException(String ref) : super('fatal: broken git reference \'ref: $ref\'');
+  BrokenReferenceException(String pathSpec) : super('fatal: broken git reference \'ref: $pathSpec\'');
 }
 
-class GitObjectException extends GitException {
-  GitObjectException(String msg) : super('fatal: corrupt object: $msg');
+class CorruptObjectException extends GitException {
+  CorruptObjectException(String msg) : super('fatal: corrupt object: $msg');
 }
 
 class NothingToCommitException extends GitException {

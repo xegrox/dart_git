@@ -26,10 +26,13 @@ class GitRepo {
   void validate() {
     var exception = InvalidGitRepositoryException(dir.path);
     if (!headFile.existsSync()) throw exception;
-    try {
-      readHEAD();
-    } catch (e) {
-      throw exception;
+    var data = headFile.readAsStringSync().trim();
+    var symRefPrefix = 'ref:';
+    if (data.startsWith(symRefPrefix)) {
+      var refPathSpec = data.substring(symRefPrefix.length).trim();
+      if (RegExp(r'^refs/.').hasMatch(refPathSpec)) ;
+    } else {
+      if (!RegExp(r'^[a-fA-F0-9]{40}$').hasMatch(data)) throw exception;
     }
   }
 
@@ -109,24 +112,24 @@ class GitRepo {
     var data = Uint8List.fromList(zlib.decode(compressedData));
 
     var headerLength = data.indexOf(0x00);
-    if (headerLength == -1) throw GitObjectException('Missing header');
+    if (headerLength == -1) throw CorruptObjectException('Missing header');
     var header = ascii.decode(data.sublist(0, data.indexOf(0x00)));
 
     var split = header.split(' ');
 
     var signature = split[0];
-    if (split.length != 2) throw GitObjectException('Invalid header $header');
+    if (split.length != 2) throw CorruptObjectException('Invalid header $header');
     if (signature != GitObjectSignature.commit &&
         signature != GitObjectSignature.tree &&
         signature != GitObjectSignature.blob) {
-      throw GitObjectException('Invalid header signature \'$signature\'');
+      throw CorruptObjectException('Invalid header signature \'$signature\'');
     }
 
     var content = data.sublist(headerLength + 1);
     var cLength = int.tryParse(split[1]);
-    if (cLength == null) throw GitObjectException('Invalid length \'$cLength\'');
+    if (cLength == null) throw CorruptObjectException('Invalid length \'$cLength\'');
     if (content.length != cLength) {
-      throw GitObjectException('Invalid length \'$cLength\' does not match actual length \'${content.length}\'');
+      throw CorruptObjectException('Invalid length \'$cLength\' does not match actual length \'${content.length}\'');
     }
 
     switch (signature) {
@@ -137,7 +140,7 @@ class GitRepo {
       case GitObjectSignature.blob:
         return GitBlob.fromBytes(content);
       default:
-        throw GitObjectException('Invalid header signature \'$signature\'');
+        throw CorruptObjectException('Invalid header signature \'$signature\'');
     }
   }
 
@@ -153,21 +156,38 @@ class GitRepo {
     file.writeAsBytesSync(compressedData);
   }
 
-  GitReference readHEAD() {
-    if (!headFile.existsSync()) throw InvalidGitRepositoryException(dir.path);
-    var symbolicRefPrefix = 'ref:';
-    var data = headFile.readAsStringSync();
-    if (headFile.statSync().type == FileSystemEntityType.link) {
-      var symlinkPath = headFile.resolveSymbolicLinksSync();
-      symlinkPath = p.relative(symlinkPath, from: getGitDir().path);
-      data = '$symbolicRefPrefix $symlinkPath';
+  GitReference readReference(String pathSpec) => _readReference(pathSpec, true);
+
+  GitReference _readReference(String pathSpec, bool mustMatch) {
+    var file = File(p.join(getGitDir().path, pathSpec));
+    if (!file.existsSync()) {
+      if (mustMatch) throw PathSpecNoMatchException(pathSpec);
+      return GitReferenceHash(pathSpec, null);
     }
-    if (data.startsWith(symbolicRefPrefix)) {
-      return GitReference.fromLink(this, data);
+
+    var data = file.readAsStringSync().trim();
+    var symRefPrefix = 'ref:';
+    if (data.startsWith(symRefPrefix)) {
+      var target = _readReference(data.substring(symRefPrefix.length).trim(), false);
+      return GitReferenceSymbolic(pathSpec, target);
     } else {
-      return GitReference.fromHash(this, GitHash(data));
+      var isHash = RegExp(r'^[a-fA-F0-9]{40}$').hasMatch(data);
+      if (isHash) return GitReferenceHash(pathSpec, GitHash(data));
+      throw BrokenReferenceException(pathSpec);
     }
   }
+
+  void writeReference(GitReference ref, [bool recursive = true]) {
+    var file = File(p.join(getGitDir().path, ref.pathSpec));
+    if (!file.parent.existsSync()) file.parent.createSync(recursive: true);
+    if (!file.existsSync()) file.createSync();
+    file.writeAsBytesSync(ref.serialize());
+    if (ref is GitReferenceSymbolic && recursive) {
+      writeReference(ref.target, true);
+    }
+  }
+
+  GitReference readHEAD() => readReference('HEAD');
 }
 
 extension RepoTree on GitRepo {

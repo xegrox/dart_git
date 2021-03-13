@@ -16,7 +16,7 @@ class GitCommitTimestamp extends Equatable {
 
   GitCommitTimestamp({@required this.secondsSinceEpoch, @required this.timezone}) {
     if (!['+', '-'].contains(timezone[0]) || timezone.length != 5 || int.tryParse(timezone) == null) {
-      GitObjectException('Invalid commit format; invalid timezone format \'$timezone\'');
+      CorruptObjectException('Invalid commit format; invalid timezone format \'$timezone\'');
     }
   }
 
@@ -60,18 +60,18 @@ class GitCommit extends GitObject with EquatableMixin {
 
   GitCommit.fromBytes(Uint8List data) {
     if (data.isEmpty) {
-      throw GitObjectException('Invalid commit format; data is empty');
+      throw CorruptObjectException('Invalid commit format; data is empty');
     }
     var lines = ascii.decode(data).split('\n');
     if (lines.last.isEmpty) lines.removeLast(); // Last line is empty because of trailing newline
-    var separatorIndex = lines.indexOf(''); // index of empty line separating commit info and message
+    var separatorIndex = lines.indexOf(''); // Index of empty line separating commit info and message
     if (separatorIndex == -1) {
-      throw GitObjectException('Invalid commit format; missing newline between header and message');
+      throw CorruptObjectException('Invalid commit format; missing newline between header and message');
     }
 
     String _trimEmail(String email) {
       if (!email.startsWith('<') || !email.endsWith('>')) {
-        throw GitObjectException('Invalid commit format; $email missing angle brackets');
+        throw CorruptObjectException('Invalid commit format; $email missing angle brackets');
       }
       return email.substring(1, email.length - 1);
     }
@@ -91,7 +91,7 @@ class GitCommit extends GitObject with EquatableMixin {
         case 'committer':
           var split = value.split(' ');
           if (split.length != 4) {
-            throw GitObjectException('Invalid commit format; invalid user format \'$value\'');
+            throw CorruptObjectException('Invalid commit format; invalid user format \'$value\'');
           }
           var name = split[0];
           var email = _trimEmail(split[1]);
@@ -101,11 +101,11 @@ class GitCommit extends GitObject with EquatableMixin {
           if (identifier == 'committer') committer = user;
           break;
         default:
-          throw GitObjectException('Invalid line \'$line\'');
+          throw CorruptObjectException('Invalid line \'$line\'');
       }
     });
     if ([treeHash, author, committer].contains(null)) {
-      throw GitObjectException('Invalid commit format; missing info for tree, author or committer');
+      throw CorruptObjectException('Invalid commit format; missing info for tree, author or committer');
     }
     message = lines.sublist(separatorIndex + 1).join('\n');
   }
