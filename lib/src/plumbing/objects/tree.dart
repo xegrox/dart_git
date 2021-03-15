@@ -32,7 +32,7 @@ class GitTreeEntry extends Equatable {
 }
 
 class GitTree extends GitObject with EquatableMixin {
-  List<GitTreeEntry> entries;
+  List<GitTreeEntry> entries = [];
 
   @override
   String get signature => 'tree';
@@ -40,12 +40,9 @@ class GitTree extends GitObject with EquatableMixin {
   GitTree(this.entries);
 
   GitTree.fromBytes(Uint8List data) {
-    if (data.isEmpty) {
-      throw CorruptObjectException('Invalid tree format; data is empty');
-    }
-    entries = [];
     var reader = ByteDataReader();
     reader.add(data);
+    entries = [];
     try {
       while (reader.remainingLength != 0) {
         var modeInt = ascii.decode(reader.readUntil(32));

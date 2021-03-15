@@ -110,37 +110,40 @@ class GitRepo {
   GitObject readObject(GitHash hash) {
     var compressedData = _objectFileFromHash(hash).readAsBytesSync();
     var data = Uint8List.fromList(zlib.decode(compressedData));
+    try {
+      var headerLength = data.indexOf(0x00);
+      if (headerLength == -1) throw CorruptObjectException('Missing header');
+      var header = ascii.decode(data.sublist(0, data.indexOf(0x00)));
 
-    var headerLength = data.indexOf(0x00);
-    if (headerLength == -1) throw CorruptObjectException('Missing header');
-    var header = ascii.decode(data.sublist(0, data.indexOf(0x00)));
+      var split = header.split(' ');
+      if (split.length != 2) throw CorruptObjectException('Invalid header $header');
 
-    var split = header.split(' ');
-
-    var signature = split[0];
-    if (split.length != 2) throw CorruptObjectException('Invalid header $header');
-    if (signature != GitObjectSignature.commit &&
-        signature != GitObjectSignature.tree &&
-        signature != GitObjectSignature.blob) {
-      throw CorruptObjectException('Invalid header signature \'$signature\'');
-    }
-
-    var content = data.sublist(headerLength + 1);
-    var cLength = int.tryParse(split[1]);
-    if (cLength == null) throw CorruptObjectException('Invalid length \'$cLength\'');
-    if (content.length != cLength) {
-      throw CorruptObjectException('Invalid length \'$cLength\' does not match actual length \'${content.length}\'');
-    }
-
-    switch (signature) {
-      case GitObjectSignature.commit:
-        return GitCommit.fromBytes(content);
-      case GitObjectSignature.tree:
-        return GitTree.fromBytes(content);
-      case GitObjectSignature.blob:
-        return GitBlob.fromBytes(content);
-      default:
+      var signature = split[0];
+      if (signature != GitObjectSignature.commit &&
+          signature != GitObjectSignature.tree &&
+          signature != GitObjectSignature.blob) {
         throw CorruptObjectException('Invalid header signature \'$signature\'');
+      }
+
+      var cLength = int.tryParse(split[1]);
+      if (cLength == null) throw CorruptObjectException('Invalid length \'$cLength\'');
+      var content = data.sublist(headerLength + 1);
+      if (content.length != cLength) {
+        throw CorruptObjectException('Invalid length \'$cLength\' does not match actual length \'${content.length}\'');
+      }
+
+      switch (signature) {
+        case GitObjectSignature.commit:
+          return GitCommit.fromBytes(content);
+        case GitObjectSignature.tree:
+          return GitTree.fromBytes(content);
+        case GitObjectSignature.blob:
+          return GitBlob.fromBytes(content);
+        default:
+          throw CorruptObjectException('Invalid header signature \'$signature\'');
+      }
+    } on CorruptObjectException catch (e) {
+      throw CorruptObjectException(e.message + ' [$hash]');
     }
   }
 

@@ -3,6 +3,8 @@ import 'dart:typed_data';
 import 'package:crypto/crypto.dart';
 import 'package:equatable/equatable.dart';
 
+import 'package:dart_git/src/exceptions.dart';
+
 Uint8List _hashToBytes(String hash) {
   var data = <int>[];
   for (var i = 0; i < 40; i += 2) {
@@ -24,11 +26,11 @@ class GitHash extends Equatable {
   final Uint8List bytes;
 
   GitHash.fromBytes(this.bytes) {
-    if (bytes.length != 20) throw Exception('Invalid hash size');
+    if (bytes.length != 20) throw GitException('Invalid hash size');
   }
 
   factory GitHash(String hash) {
-    if (!RegExp(r'^[a-fA-F0-9]{40}$').hasMatch(hash)) throw Exception('Invalid hash');
+    if (!RegExp(r'^[a-fA-F0-9]{40}$').hasMatch(hash)) throw GitException('Invalid hash');
     return GitHash.fromBytes(_hashToBytes(hash));
   }
 

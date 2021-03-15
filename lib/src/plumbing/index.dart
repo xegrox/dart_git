@@ -16,8 +16,8 @@ import 'package:dart_git/src/plumbing/utils.dart';
 
 class GitIndexEntry {
   int version;
-  GitTimestamp cTime;
-  GitTimestamp mTime;
+  GitIndexTimestamp cTime;
+  GitIndexTimestamp mTime;
   int device;
   int inode;
   GitFileMode mode;
@@ -55,16 +55,13 @@ class GitIndexEntry {
   GitIndexEntry.fromBytes(ByteDataReader reader, String previousEntryPath, int indexVersion) {
     version = indexVersion;
 
-    var epochDateTime = DateTime.fromMillisecondsSinceEpoch(0);
     var cTimeSeconds = reader.readUint32();
     var cTimeNanoSeconds = reader.readUint32();
-    var cTimeDateTime = epochDateTime.add(Duration(seconds: cTimeSeconds, microseconds: cTimeNanoSeconds ~/ 1000));
-    cTime = GitTimestamp(dateTime: cTimeDateTime, seconds: cTimeSeconds, nanoSeconds: cTimeNanoSeconds);
+    cTime = GitIndexTimestamp(cTimeSeconds, cTimeNanoSeconds);
 
     var mTimeSeconds = reader.readUint32();
     var mTimeNanoSeconds = reader.readUint32();
-    var mTimeDateTime = epochDateTime.add(Duration(seconds: mTimeSeconds, microseconds: mTimeNanoSeconds ~/ 1000));
-    mTime = GitTimestamp(dateTime: mTimeDateTime, seconds: mTimeSeconds, nanoSeconds: mTimeNanoSeconds);
+    mTime = GitIndexTimestamp(mTimeSeconds, mTimeNanoSeconds);
 
     device = reader.readUint32();
     inode = reader.readUint32();
@@ -409,12 +406,13 @@ class GitFileStage extends Equatable {
   bool get stringify => true;
 }
 
-class GitTimestamp {
-  final DateTime dateTime;
-
+class GitIndexTimestamp {
   // This is necessary as DateTime only stores up to microSeconds
   final int seconds;
   final int nanoSeconds;
 
-  GitTimestamp({@required this.dateTime, @required this.seconds, @required this.nanoSeconds});
+  DateTime getDateTime() =>
+      DateTime.fromMillisecondsSinceEpoch(0).add(Duration(seconds: seconds, microseconds: nanoSeconds ~/ 1000));
+
+  GitIndexTimestamp(this.seconds, this.nanoSeconds);
 }
