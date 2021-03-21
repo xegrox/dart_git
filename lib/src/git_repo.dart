@@ -11,6 +11,7 @@ import 'package:dart_git/src/plumbing/index.dart';
 import 'package:dart_git/src/plumbing/objects/blob.dart';
 import 'package:dart_git/src/plumbing/objects/commit.dart';
 import 'package:dart_git/src/plumbing/objects/object.dart';
+import 'package:dart_git/src/plumbing/objects/tag.dart';
 import 'package:dart_git/src/plumbing/objects/tree.dart';
 import 'package:dart_git/src/plumbing/reference.dart';
 
@@ -119,11 +120,6 @@ class GitRepo {
       if (split.length != 2) throw CorruptObjectException('Invalid header $header');
 
       var signature = split[0];
-      if (signature != GitObjectSignature.commit &&
-          signature != GitObjectSignature.tree &&
-          signature != GitObjectSignature.blob) {
-        throw CorruptObjectException('Invalid header signature \'$signature\'');
-      }
 
       var cLength = int.tryParse(split[1]);
       if (cLength == null) throw CorruptObjectException('Invalid length \'$cLength\'');
@@ -139,11 +135,13 @@ class GitRepo {
           return GitTree.fromBytes(content);
         case GitObjectSignature.blob:
           return GitBlob.fromBytes(content);
+        case GitObjectSignature.tag:
+          return GitTag.fromBytes(content);
         default:
           throw CorruptObjectException('Invalid header signature \'$signature\'');
       }
     } on CorruptObjectException catch (e) {
-      throw CorruptObjectException(e.message + ' [$hash]');
+      throw CorruptObjectException(e.msg + ' [$hash]');
     }
   }
 
@@ -159,34 +157,48 @@ class GitRepo {
     file.writeAsBytesSync(compressedData);
   }
 
-  GitReference readReference(String pathSpec) => _readReference(pathSpec, true);
+  GitReference readReference(String pathSpec) {
+    var pathSpecMustMatch = true;
+    GitReference _readReference(String pathSpec) {
+      var file = File(p.join(getGitDir().path, pathSpec));
+      if (!file.existsSync()) {
+        if (pathSpecMustMatch) throw PathSpecNoMatchException(pathSpec);
+        return GitReferenceHash(pathSpec.split('/'), null);
+      }
 
-  GitReference _readReference(String pathSpec, bool mustMatch) {
-    var file = File(p.join(getGitDir().path, pathSpec));
-    if (!file.existsSync()) {
-      if (mustMatch) throw PathSpecNoMatchException(pathSpec);
-      return GitReferenceHash(pathSpec, null);
+      var data = file.readAsStringSync().trim();
+      var symRefPrefix = 'ref:';
+      if (data.startsWith(symRefPrefix)) {
+        pathSpecMustMatch = false;
+        var target = _readReference(data.substring(symRefPrefix.length).trim());
+        return GitReferenceSymbolic(pathSpec.split('/'), target);
+      } else {
+        var isHash = RegExp(r'^[a-fA-F0-9]{40}$').hasMatch(data);
+        if (isHash) return GitReferenceHash(pathSpec.split('/'), GitHash(data));
+        throw BrokenReferenceException(pathSpec);
+      }
     }
 
-    var data = file.readAsStringSync().trim();
-    var symRefPrefix = 'ref:';
-    if (data.startsWith(symRefPrefix)) {
-      var target = _readReference(data.substring(symRefPrefix.length).trim(), false);
-      return GitReferenceSymbolic(pathSpec, target);
-    } else {
-      var isHash = RegExp(r'^[a-fA-F0-9]{40}$').hasMatch(data);
-      if (isHash) return GitReferenceHash(pathSpec, GitHash(data));
-      throw BrokenReferenceException(pathSpec);
-    }
+    return _readReference(pathSpec);
   }
 
   void writeReference(GitReference ref, [bool recursive = true]) {
-    var file = File(p.join(getGitDir().path, ref.pathSpec));
+    var file = File(p.join(getGitDir().path, ref.pathSpec.join('/')));
     if (!file.parent.existsSync()) file.parent.createSync(recursive: true);
     if (!file.existsSync()) file.createSync();
     file.writeAsBytesSync(ref.serialize());
     if (ref is GitReferenceSymbolic && recursive) {
       writeReference(ref.target, true);
+    }
+  }
+
+  bool deleteReference(List<String> pathSpec) {
+    var file = File(p.join(getGitDir().path, pathSpec.join('/')));
+    try {
+      file.deleteSync();
+      return true;
+    } on FileSystemException {
+      return false;
     }
   }
 

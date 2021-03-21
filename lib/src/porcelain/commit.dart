@@ -5,15 +5,12 @@ import 'package:dart_git/src/plumbing/objects/commit.dart';
 import 'package:dart_git/src/plumbing/reference.dart';
 
 extension Commit on GitRepo {
-  void commit(String message) {
+  GitHash commit(String message) {
     validate();
 
     var index = readIndex();
-    var refHash = readHEAD();
-    while (refHash is GitReferenceSymbolic) {
-      refHash = (refHash as GitReferenceSymbolic).target;
-    }
-    var headCommitHash = (refHash as GitReferenceHash).hash;
+    var headHashRef = readHEAD().obtainHashRef();
+    var headCommitHash = headHashRef.hash;
     var rootTree = index.computeTrees((tree) {
       writeObject(tree);
     });
@@ -34,7 +31,8 @@ extension Commit on GitRepo {
     writeObject(commit);
 
     // Write head
-    (refHash as GitReferenceHash).hash = commit.hash;
-    writeReference(refHash, true);
+    headHashRef = GitReferenceHash(headHashRef.pathSpec, commit.hash);
+    writeReference(headHashRef);
+    return commit.hash;
   }
 }

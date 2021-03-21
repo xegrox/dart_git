@@ -18,6 +18,8 @@ abstract class TestObjFiles {
   static final tree_2 = _objFixture('tree_2');
   static final commit_1 = _objFixture('commit_1');
   static final commit_2 = _objFixture('commit_2');
+  static final tag_1 = _objFixture('tag_1');
+  static final tag_2 = _objFixture('tag_2');
 }
 
 abstract class TestObjHashes {
@@ -28,4 +30,6 @@ abstract class TestObjHashes {
   static final tree_2 = GitHash('8627aedabf93da1e96dd5405c97711fc61ce1364');
   static final commit_1 = GitHash('5a65b7a876102096f5832d29d558c2cac23d64eb');
   static final commit_2 = GitHash('84f232cf214c8b5e08ab73562e2e6b771f19e290');
+  static final tag_1 = GitHash('82464537e78e6cd3fedfa454d953d207c7ad04b3');
+  static final tag_2 = GitHash('b7cdbe51f56e6a8ea0c99a07a3d93f3a3d0fd5c1');
 }

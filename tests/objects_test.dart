@@ -5,6 +5,7 @@ import 'package:test/test.dart';
 
 import 'package:dart_git/src/plumbing/objects/blob.dart';
 import 'package:dart_git/src/plumbing/objects/commit.dart';
+import 'package:dart_git/src/plumbing/objects/tag.dart';
 import 'package:dart_git/src/plumbing/objects/tree.dart';
 import 'constants.dart';
 
@@ -47,5 +48,16 @@ void main() {
 
     expect(commit_1.hash, TestObjHashes.commit_1);
     expect(commit_2.hash, TestObjHashes.commit_2);
+  });
+
+  test('Test parse tag object', () {
+    final tag_content_1 = zlibDecode(TestObjFiles.tag_1.readAsBytesSync());
+    final tag_content_2 = zlibDecode(TestObjFiles.tag_2.readAsBytesSync());
+
+    final tag_1 = GitTag.fromBytes(stripHeader(tag_content_1));
+    final tag_2 = GitTag.fromBytes(stripHeader(tag_content_2));
+
+    expect(tag_1.hash, TestObjHashes.tag_1);
+    expect(tag_2.hash, TestObjHashes.tag_2);
   });
 }

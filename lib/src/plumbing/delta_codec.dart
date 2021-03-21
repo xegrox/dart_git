@@ -11,7 +11,7 @@ class GitDeltaCodec {
   Uint8List decode(Uint8List baseObjContent, ByteDataReader reader) {
     if (reader.endian != Endian.big) throw GitException('Reader endianness must be big');
     var baseObjSize = _vlqCodec.decode(reader);
-    if (baseObjSize != baseObjContent.length) throw GitDeltaException('Invalid base object size $baseObjSize');
+    if (baseObjSize != baseObjContent.length) throw GitException('Invalid delta base object size $baseObjSize');
     var objSize = _vlqCodec.decode(reader);
 
     var objContent = <int>[];
@@ -42,12 +42,12 @@ class GitDeltaCodec {
         var content = reader.read(size);
         objContent.addAll(content);
       } else {
-        throw GitDeltaException('Invalid delta opcode $opcode');
+        throw GitException('Invalid delta opcode $opcode');
       }
     }
 
     if (objSize != objContent.length) {
-      throw GitDeltaException('Generated object size does not match actual size');
+      throw GitException('Generated object size does not match given size in delta');
     }
 
     return Uint8List.fromList(objContent);

@@ -99,7 +99,12 @@ class GitPackFile {
         var baseObjContent = baseObj.serializeContent();
         var reader = ByteDataReader();
         reader.add(entry.content);
-        var content = GitDeltaCodec().decode(baseObjContent, reader);
+        Uint8List content;
+        try {
+          content = GitDeltaCodec().decode(baseObjContent, reader);
+        } on GitException catch (e) {
+          throw GitPackFileException('Corrupt delta: ${e.message}');
+        }
         switch (baseObj.signature) {
           case GitObjectSignature.commit:
             return GitCommit.fromBytes(content);

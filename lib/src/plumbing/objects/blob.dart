@@ -5,7 +5,7 @@ import 'package:equatable/equatable.dart';
 import 'package:dart_git/src/plumbing/objects/object.dart';
 
 class GitBlob extends GitObject with EquatableMixin {
-  Uint8List content;
+  final Uint8List content;
 
   @override
   String get signature => GitObjectSignature.blob;

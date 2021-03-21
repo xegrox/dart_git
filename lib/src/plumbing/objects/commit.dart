@@ -10,25 +10,24 @@ import 'package:dart_git/src/plumbing/objects/object.dart';
 import 'package:dart_git/src/plumbing/objects/tree.dart';
 
 class GitCommit extends GitObject with EquatableMixin {
-  DateTime time = DateTime.now();
-  GitHash treeHash;
-  List<GitHash> parentHashes = [];
-  GitUserTimestamp author;
-  GitUserTimestamp committer;
-  String message;
+  final GitHash treeHash;
+  final List<GitHash> parentHashes;
+  final GitUserTimestamp author;
+  final GitUserTimestamp committer;
+  final String message;
 
   @override
-  String get signature => 'commit';
+  String get signature => GitObjectSignature.commit;
 
-  GitCommit.fromBytes(Uint8List data) {
+  GitCommit._(this.treeHash, this.parentHashes, this.author, this.committer, this.message);
+
+  factory GitCommit.fromBytes(Uint8List data) {
     var lines = ascii.decode(data).split('\n');
-    while (lines.remove('')) {}
-    ; // Remove empty lines
 
     void checkLineExists(int index) {
       var lineNum = index + 1;
       if (lines.length < lineNum) {
-        throw CorruptObjectException('Not enough lines to read; missing line $lineNum');
+        throw CorruptObjectException('Not enough lines for commit object; missing line $lineNum');
       }
     }
 
@@ -40,6 +39,7 @@ class GitCommit extends GitObject with EquatableMixin {
       throw CorruptObjectException('Invalid tree entry in commit object');
     }
     var treeHashStr = treeEntry.substring(treeEntryName.length);
+    GitHash treeHash;
     try {
       treeHash = GitHash(treeHashStr);
     } catch (_) {
@@ -49,6 +49,7 @@ class GitCommit extends GitObject with EquatableMixin {
     // Parent entry
     var parentEntryName = 'parent ';
     checkLineExists(1);
+    var parentHashes = <GitHash>[];
     for (var i = 1; lines[i].startsWith(parentEntryName); i++) {
       var parentEntry = lines[i];
       if (parentEntry.length != parentEntryName.length + 40) {
@@ -71,8 +72,8 @@ class GitCommit extends GitObject with EquatableMixin {
     if (!authorEntry.startsWith(authorEntryName)) {
       throw CorruptObjectException('Invalid author entry in commit object');
     }
-    var authorEntryStr = authorEntry.substring(authorEntryName.length);
-    author = GitUserTimestamp.fromBytes(ascii.encode(authorEntryStr));
+    var authorEntryContent = authorEntry.substring(authorEntryName.length);
+    var author = GitUserTimestamp.fromBytes(ascii.encode(authorEntryContent));
     nextLineIndex++;
 
     // Committer entry
@@ -82,23 +83,27 @@ class GitCommit extends GitObject with EquatableMixin {
     if (!committerEntry.startsWith(committerEntryName)) {
       throw CorruptObjectException('Invalid author entry in commit object');
     }
-    var committerEntryStr = committerEntry.substring(committerEntryName.length);
-    committer = GitUserTimestamp.fromBytes(ascii.encode(committerEntryStr));
+    var committerEntryContent = committerEntry.substring(committerEntryName.length);
+    var committer = GitUserTimestamp.fromBytes(ascii.encode(committerEntryContent));
     nextLineIndex++;
 
     // Message
-    message = lines.sublist(nextLineIndex, lines.length).join('\n');
+    if (lines[nextLineIndex].isEmpty) nextLineIndex++; // Skip newline separator
+    if (lines.last.isEmpty) lines.removeLast(); // Remove trailing newline
+    var message = lines.sublist(nextLineIndex, lines.length).join('\n');
+    return GitCommit._(treeHash, parentHashes, author, committer, message);
   }
 
-  GitCommit.fromTree(GitTree tree, this.message, GitConfig config, [this.parentHashes]) {
-    treeHash = tree.hash;
+  factory GitCommit.fromTree(GitTree tree, String message, GitConfig config, [List<GitHash> parentHashes = const []]) {
+    var treeHash = tree.hash;
     var section = config.getSection('user');
     var name = section.getRaw('name') as String;
     var email = section.getRaw('email') as String;
     var currentTime = DateTime.now();
     var userTimestamp = GitUserTimestamp(name, email, currentTime, currentTime.timeZoneOffset);
-    author = userTimestamp;
-    committer = userTimestamp;
+    var author = userTimestamp;
+    var committer = userTimestamp;
+    return GitCommit._(treeHash, parentHashes, author, committer, message);
   }
 
   @override

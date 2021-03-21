@@ -18,9 +18,6 @@ class GitTreeEntry extends Equatable {
   final GitFileMode mode;
   final GitHash hash;
 
-  @override
-  List<Object> get props => [path, mode, hash];
-
   Uint8List serialize() {
     var data = <int>[];
     var fmt = '$mode $path';
@@ -29,20 +26,23 @@ class GitTreeEntry extends Equatable {
     data.addAll(hash.bytes);
     return Uint8List.fromList(data);
   }
+
+  @override
+  List<Object> get props => [path, mode, hash];
 }
 
 class GitTree extends GitObject with EquatableMixin {
-  List<GitTreeEntry> entries = [];
+  final List<GitTreeEntry> entries;
 
   @override
-  String get signature => 'tree';
+  String get signature => GitObjectSignature.tree;
 
   GitTree(this.entries);
 
-  GitTree.fromBytes(Uint8List data) {
+  factory GitTree.fromBytes(Uint8List data) {
     var reader = ByteDataReader();
     reader.add(data);
-    entries = [];
+    var entries = <GitTreeEntry>[];
     try {
       while (reader.remainingLength != 0) {
         var modeInt = ascii.decode(reader.readUntil(32));
@@ -55,6 +55,7 @@ class GitTree extends GitObject with EquatableMixin {
     } catch (e) {
       throw CorruptObjectException('Invalid tree format');
     }
+    return GitTree(entries);
   }
 
   @override

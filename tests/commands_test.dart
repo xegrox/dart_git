@@ -5,6 +5,9 @@ import 'package:test/test.dart';
 
 import 'package:dart_git/dart_git.dart';
 import 'package:dart_git/src/exceptions.dart';
+import 'package:dart_git/src/plumbing/objects/object.dart';
+import 'package:dart_git/src/plumbing/objects/tag.dart';
+import 'package:dart_git/src/plumbing/reference.dart';
 import 'constants.dart';
 
 void main() {
@@ -78,8 +81,14 @@ void main() {
     section.set('name', 'XeGrox');
     section.set('email', 'xegrox@protonmail.com');
     repo.writeConfig(config);
-    repo.commit('Initial commit');
+    var commitHash = repo.commit('Initial commit');
     expect(() => repo.commit(''), throwsA(TypeMatcher<NothingToCommitException>()));
+
+    var head = repo.readHEAD() as GitReferenceSymbolic; // HEAD
+    var headHashRef = head.target as GitReferenceHash; // refs/heads/master
+    expect(head.pathSpec, ['HEAD']);
+    expect(headHashRef.pathSpec, ['refs', 'heads', 'master']);
+    expect(headHashRef.hash, commitHash);
   });
 
   test(('Test git remove'), () {
@@ -117,6 +126,28 @@ void main() {
     expect(repo.dir.listSync().length, 2);
     expect(File(p.join(repo.dir.path, path_spec_2)).existsSync(), true);
     expect(entries.length, 0);
+  });
+
+  test('Test git tag', () {
+    var tagObjHash = TestObjHashes.blob_1;
+
+    // Non-annotated tag
+    repo.writeTag('tag_1', tagObjHash);
+    var tagRef = repo.readReference('refs/tags/tag_1') as GitReferenceHash;
+    expect(tagRef.hash, tagObjHash);
+
+    // Annotated tag
+    repo.writeTag('tag_2', tagObjHash, 'dummy');
+    tagRef = repo.readReference('refs/tags/tag_2') as GitReferenceHash;
+    var tagObj = repo.readObject(tagRef.hash);
+    expect(tagObj.signature, GitObjectSignature.tag);
+    expect((tagObj as GitTag).objectHash, tagObjHash);
+
+    // Delete tags
+    expect(repo.deleteTag('tag_1'), true);
+    expect(repo.deleteTag('tag_2'), true);
+    expect(repo.deleteTag('tag_1'), false);
+    expect(repo.deleteTag('tag_2'), false);
   });
 
   tearDownAll(() => sandboxDir.deleteSync(recursive: true));
