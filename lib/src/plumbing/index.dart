@@ -296,44 +296,60 @@ class GitIndex {
 
   /// Returns the root tree object. Null if no index entries are present
   ///
-  /// onNewTree is called when the tree or its parent does not contain
-  /// a valid cache. The tree might not necessarily be modified
+  /// onNewTree is called when the tree or any of its parents are not cached
+  /// The tree itself might not have been modified
   GitTree computeTrees([Function(GitTree tree) onNewTree]) {
-    var newTreesMap = <String, GitTree>{};
-    // This is stored with cached trees to prevent onNewTree calls for its subtrees
-    // Cached tree entries for these subtrees will still be added if it wasn't
+    // Keep track of the paths of cached entries
     var cachedTreePaths = <String>[];
+    // Sort trees in top-down, depth-first order, while grouping sibling entries together
+    var newTreesMap = SplayTreeMap<String, GitTree>((a, b) {
+      var depth1 = '/'.allMatches(a).length;
+      var depth2 = '/'.allMatches(b).length;
+      if (depth1 == depth2) {
+        return b.compareTo(a);
+      } else {
+        return depth2 - depth1;
+      }
+    });
 
     for (var i = 0; i < _entries.length; i++) {
       var key = _entries.keys.elementAt(i);
       var entry = _entries.values.elementAt(i);
       var name = p.basename(key.path);
-      var dir = p.dirname(key.path);
-      if (dir == '.') dir = '';
+      var dirPath = p.dirname(key.path);
+      if (dirPath == '.') dirPath = '';
 
       // Skip generation of cached trees
-      if ((extCachedTree.getEntry(dir)?.isValid() ?? false)) {
-        cachedTreePaths.add(dir);
+      if ((extCachedTree.getEntry(dirPath)?.isValid() ?? false)) {
+        cachedTreePaths.add(dirPath);
         // We have to generate at least the root tree
-        if (dir != '') {
+        if (dirPath.isNotEmpty) {
           continue;
         }
       }
 
       // Generate trees that have not been cached
-      var treeEntry = GitTreeEntry(mode: entry.mode, path: name, hash: entry.hash);
-      if (newTreesMap.containsKey(dir)) {
-        newTreesMap[dir].entries.add(treeEntry);
+      var treeEntry = GitTreeEntry(mode: entry.mode, name: name, hash: entry.hash);
+      if (newTreesMap.containsKey(dirPath)) {
+        newTreesMap[dirPath].entries.add(treeEntry);
       } else {
-        newTreesMap[dir] = GitTree([treeEntry]);
+        newTreesMap[dirPath] = GitTree([treeEntry]);
       }
     }
 
+    // Iterates from deepest directory
     newTreesMap.forEach((dir, tree) {
+      // Add the tree as an entry in its parent tree
+      if (dir.isNotEmpty) {
+        var treeEntry = GitTreeEntry(mode: GitFileMode.dir, name: p.basename(dir), hash: tree.hash);
+        var parentPath = p.dirname(dir);
+        if (parentPath == '.') parentPath = '';
+        newTreesMap[parentPath].entries.add(treeEntry);
+      }
+
       // Cache these trees
       var cachedEntry = GitIdxExtCachedTreeEntry.fromTree(dir, tree);
       extCachedTree.addEntry(cachedEntry);
-      // Prevent unnecessary onNewTree calls
       if (!cachedTreePaths.any((path) => dir.startsWith(path))) {
         onNewTree(tree);
       }
@@ -374,13 +390,12 @@ class GitFileMode extends Equatable {
     return GitFileMode(val);
   }
 
-  static final Empty = GitFileMode(0);
-  static final Dir = GitFileMode(int.parse('40000', radix: 8));
-  static final Regular = GitFileMode(int.parse('100644', radix: 8));
-  static final Deprecated = GitFileMode(int.parse('100664', radix: 8));
-  static final Executable = GitFileMode(int.parse('100755', radix: 8));
-  static final Symlink = GitFileMode(int.parse('120000', radix: 8));
-  static final Submodule = GitFileMode(int.parse('160000', radix: 8));
+  static final dir = GitFileMode(int.parse('40000', radix: 8));
+  static final regular = GitFileMode(int.parse('100644', radix: 8));
+  static final deprecated = GitFileMode(int.parse('100664', radix: 8));
+  static final executable = GitFileMode(int.parse('100755', radix: 8));
+  static final symlink = GitFileMode(int.parse('120000', radix: 8));
+  static final submodule = GitFileMode(int.parse('160000', radix: 8));
 
   @override
   List<Object> get props => [val];

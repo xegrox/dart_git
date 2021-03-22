@@ -5,8 +5,10 @@ import 'package:test/test.dart';
 
 import 'package:dart_git/dart_git.dart';
 import 'package:dart_git/src/exceptions.dart';
+import 'package:dart_git/src/plumbing/objects/commit.dart';
 import 'package:dart_git/src/plumbing/objects/object.dart';
 import 'package:dart_git/src/plumbing/objects/tag.dart';
+import 'package:dart_git/src/plumbing/objects/tree.dart';
 import 'package:dart_git/src/plumbing/reference.dart';
 import 'constants.dart';
 
@@ -89,6 +91,13 @@ void main() {
     expect(head.pathSpec, ['HEAD']);
     expect(headHashRef.pathSpec, ['refs', 'heads', 'master']);
     expect(headHashRef.hash, commitHash);
+
+    var commitObj = repo.readObject(commitHash) as GitCommit;
+    var rootTreeObj = repo.readObject(commitObj.treeHash) as GitTree;
+    var anotherTreeHash = rootTreeObj.entries.firstWhere((e) => e.name == 'another').hash;
+    var anotherTreeObj = repo.readObject(anotherTreeHash) as GitTree;
+    expect(rootTreeObj.entries.length, 4);
+    expect(anotherTreeObj.entries.length, 3);
   });
 
   test(('Test git remove'), () {

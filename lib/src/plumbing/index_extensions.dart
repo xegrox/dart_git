@@ -40,7 +40,7 @@ class GitIdxExtCachedTreeEntry {
     numEntries = tree.entries.length;
     numSubtrees = 0;
     tree.entries.forEach((entry) {
-      if (entry.mode == GitFileMode.Dir) numSubtrees++;
+      if (entry.mode == GitFileMode.dir) numSubtrees++;
     });
     hash = tree.hash;
   }

@@ -97,14 +97,14 @@ extension Add on GitRepo {
 
     void addRecursively(FileSystemEntity entity) {
       if (entity is File) {
-        var mode = GitFileMode.Regular;
+        var mode = GitFileMode.regular;
         var content = entity.readAsBytesSync();
         var blob = GitBlob.fromBytes(content);
         writeObject(blob);
         var entry = toEntry(entity, mode, blob.hash);
         index.setEntry(entry);
       } else if (entity is Link) {
-        var mode = GitFileMode.Symlink;
+        var mode = GitFileMode.symlink;
         var content = ascii.encode(entity.targetSync());
         var blob = GitBlob.fromBytes(content);
         writeObject(blob);

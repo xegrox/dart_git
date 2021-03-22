@@ -12,15 +12,15 @@ import 'package:dart_git/src/plumbing/objects/object.dart';
 import 'package:dart_git/src/plumbing/utils.dart';
 
 class GitTreeEntry extends Equatable {
-  GitTreeEntry({@required this.mode, @required this.path, @required this.hash});
+  GitTreeEntry({@required this.mode, @required this.name, @required this.hash});
 
-  final String path;
+  final String name;
   final GitFileMode mode;
   final GitHash hash;
 
   Uint8List serialize() {
     var data = <int>[];
-    var fmt = '$mode $path';
+    var fmt = '$mode $name';
     data.addAll(ascii.encode(fmt));
     data.add(0x00);
     data.addAll(hash.bytes);
@@ -28,7 +28,7 @@ class GitTreeEntry extends Equatable {
   }
 
   @override
-  List<Object> get props => [path, mode, hash];
+  List<Object> get props => [name, mode, hash];
 }
 
 class GitTree extends GitObject with EquatableMixin {
@@ -49,7 +49,7 @@ class GitTree extends GitObject with EquatableMixin {
         var mode = GitFileMode.parse(modeInt);
         var path = ascii.decode(reader.readUntil(0x00));
         var hash = GitHash.fromBytes(reader.read(20));
-        var entry = GitTreeEntry(mode: mode, path: path, hash: hash);
+        var entry = GitTreeEntry(mode: mode, name: path, hash: hash);
         entries.add(entry);
       }
     } catch (e) {
