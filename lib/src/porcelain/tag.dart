@@ -1,6 +1,6 @@
-import 'package:dart_git/dart_git.dart';
 import 'package:dart_git/src/exceptions.dart';
 import 'package:dart_git/src/git_hash.dart';
+import 'package:dart_git/src/git_repo.dart';
 import 'package:dart_git/src/plumbing/objects/object.dart';
 import 'package:dart_git/src/plumbing/objects/tag.dart';
 import 'package:dart_git/src/plumbing/reference.dart';

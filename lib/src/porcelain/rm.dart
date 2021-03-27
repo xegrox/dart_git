@@ -2,8 +2,8 @@ import 'dart:io';
 
 import 'package:path/path.dart' as p;
 
-import 'package:dart_git/dart_git.dart';
 import 'package:dart_git/src/exceptions.dart';
+import 'package:dart_git/src/git_repo.dart';
 
 extension Remove on GitRepo {
   void rm(String pathSpec, {bool cached = false}) {

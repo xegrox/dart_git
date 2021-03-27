@@ -3,9 +3,9 @@ import 'dart:io';
 
 import 'package:path/path.dart' as p;
 
-import 'package:dart_git/dart_git.dart';
 import 'package:dart_git/src/exceptions.dart';
 import 'package:dart_git/src/git_hash.dart';
+import 'package:dart_git/src/git_repo.dart';
 import 'package:dart_git/src/plumbing/index.dart';
 import 'package:dart_git/src/plumbing/objects/blob.dart';
 

@@ -25,7 +25,7 @@ abstract class GitReference {
     });
   }
 
-  GitReferenceHash obtainHashRef() {
+  GitReferenceHash revParse() {
     var r = this;
     while (r is GitReferenceSymbolic) {
       r = (r as GitReferenceSymbolic).target;

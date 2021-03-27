@@ -9,7 +9,7 @@ extension Commit on GitRepo {
     validate();
 
     var index = readIndex();
-    var headHashRef = readHEAD().obtainHashRef();
+    var headHashRef = readHEAD().revParse();
     var headCommitHash = headHashRef.hash;
     var rootTree = index.computeTrees((tree) {
       writeObject(tree);
