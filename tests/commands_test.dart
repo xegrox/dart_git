@@ -42,19 +42,24 @@ void main() {
       repo.validate();
     });
 
-    test('When_ReinitRepo_Should_RetainConfigValues', () {
+    test('When_ReinitRepo_Should_RetainConfigValuesAndModifiedFiles', () {
       var config = repo.readConfig();
       var coreSection = config.getSection('core');
       coreSection.set('dummy', '0');
       coreSection.set('logallrefupdates', false);
       repo.writeConfig(config);
+      var headFile = File(p.join(repo.dotGitDir.path, 'HEAD'));
+      headFile.writeAsStringSync('ref: refs/heads/dummy');
 
       repo = GitRepo.init(sandboxDir);
       repo.validate();
+
       config = repo.readConfig();
       coreSection = config.getSection('core');
       expect(coreSection.getRaw('dummy'), '0');
       expect(coreSection.getParsed('logallrefupdates'), true);
+      expect(headFile.readAsStringSync(), 'ref: refs/heads/dummy');
+      headFile.writeAsStringSync('ref: refs/heads/master');
     });
 
     test('When_Commit_Should_ThrowException', () {

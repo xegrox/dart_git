@@ -42,7 +42,7 @@ class GitRepo {
 
     gitDir.createSync(recursive: true);
 
-    // Init git config
+    // Write git config
     var config = readConfig();
     var coreSectionName = 'core';
     var coreSection = config.getSection(coreSectionName) ?? GitConfigSection(coreSectionName);
@@ -52,6 +52,7 @@ class GitRepo {
     coreSection.set('bare', bare);
     if (!bare) coreSection.set('logallrefupdates', true);
     config.setSection(coreSection);
+    writeConfig(config);
 
     // Create directories
     var dirList = [
@@ -69,7 +70,7 @@ class GitRepo {
       dir.createSync();
     }
 
-    // Create and write files
+    // Create and write files if not exists
     var fileList = <File, String>{
       descFile: "Unnamed repository; edit this file 'description' to name the repository.\n",
       headFile: 'ref: refs/heads/master\n',
@@ -84,10 +85,10 @@ class GitRepo {
     };
 
     fileList.forEach((file, contents) {
+      if (file.existsSync()) return;
       file.createSync();
       file.writeAsStringSync(contents);
     });
-    writeConfig(config);
   }
 
   GitConfig readConfig() => (configFile.existsSync()) ? GitConfig.fromBytes(configFile.readAsBytesSync()) : GitConfig();
@@ -170,6 +171,7 @@ class GitRepo {
 
       var data = file.readAsStringSync().trim();
       var symRefPrefix = 'ref:';
+
       if (data.startsWith(symRefPrefix)) {
         pathSpecMustMatch = false;
         var target = _readReference(data.substring(symRefPrefix.length).trim());
