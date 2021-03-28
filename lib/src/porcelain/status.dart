@@ -114,7 +114,7 @@ extension Status on GitRepo {
     void l(Directory d) {
       d.listSync(followLinks: false).forEach((e) {
         if (e is Directory) {
-          if (e.path != getGitDir().path) l(e);
+          if (e.path != dotGitDir.path) l(e);
         } else {
           var relPath = p.relative(e.path, from: dir.path).replaceAll(p.separator, '/');
           workingFiles[relPath] = e;

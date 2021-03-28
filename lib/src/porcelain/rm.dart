@@ -1,3 +1,4 @@
+import 'dart:collection';
 import 'dart:io';
 
 import 'package:path/path.dart' as p;
@@ -25,13 +26,8 @@ extension Remove on GitRepo {
     if (entries.isEmpty) throw exception;
 
     // Directories that are left empty after the file deletions should be removed as well
-    // We want to avoid continuously checking if a directory is empty whenever a child is removed,
-    // as it might be costly, when there are too many child directories.
-    // Hence, it is only checked after all children (in the list of entries to be removed) residing
-    // in the same directory is removed, starting from the deepest entry.
-
-    // Sort entries in top-down, depth-first order, while grouping sibling entries together
-    entries.sort((a, b) {
+    // Sort directories in top-down, depth-first order
+    var parentDirs = SplayTreeSet<Directory>((a, b) {
       var depth1 = '/'.allMatches(a.path).length;
       var depth2 = '/'.allMatches(b.path).length;
       if (depth1 == depth2) {
@@ -41,21 +37,27 @@ extension Remove on GitRepo {
       }
     });
 
-    // Once the iteration moves on to an entry that resides in a different directory, check if
-    // the previous directory (containing the previous entry) is empty. If so, delete it.
-    Directory previousParentDir;
     entries.forEach((entry) {
-      var parentDir = Directory(p.join(dir.path, p.dirname(entry.path)));
+      parentDirs.add(Directory(p.join(dir.path, p.dirname(entry.path))));
       index.removeEntry(entry.path, entry.stage);
       if (!cached) {
         var file = File(p.join(dir.path, entry.path));
         if (file.existsSync()) file.deleteSync();
-        if (previousParentDir != null && parentDir.path != previousParentDir.path) {
-          if (previousParentDir.listSync().isEmpty) previousParentDir.deleteSync();
-        }
       }
-      previousParentDir = parentDir;
     });
+
+    if (!cached) {
+      var cachedNonEmptyPaths = <String>[];
+      parentDirs.forEach((dir) {
+        if (cachedNonEmptyPaths.any((p) => p.startsWith(dir.path))) return;
+        if (dir.listSync().isEmpty) {
+          dir.deleteSync();
+        } else {
+          cachedNonEmptyPaths.add(dir.path);
+        }
+      });
+    }
+
     writeIndex(index);
   }
 }

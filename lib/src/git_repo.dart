@@ -22,7 +22,7 @@ class GitRepo {
 
   final Directory dir;
 
-  Directory getGitDir() => Directory(p.join(dir.path, '.git'));
+  Directory get dotGitDir => Directory(p.join(dir.path, '.git'));
 
   void validate() {
     var exception = InvalidGitRepositoryException(dir.path);
@@ -40,16 +40,18 @@ class GitRepo {
   GitRepo.init(this.dir, {bool bare = false}) {
     var gitDir = bare ? dir : Directory(p.join(dir.path, '.git'));
 
-    gitDir.createSync();
+    gitDir.createSync(recursive: true);
 
     // Init git config
-    var config = GitConfig();
-    var configSection = config.addSection('core');
-    configSection.set('repositoryformatversion', 0);
+    var config = readConfig();
+    var coreSectionName = 'core';
+    var coreSection = config.getSection(coreSectionName) ?? GitConfigSection(coreSectionName);
+    coreSection.set('repositoryformatversion', 0);
     var configFileMode = (Platform.isWindows) ? false : true;
-    configSection.set('filemode', configFileMode);
-    configSection.set('bare', bare);
-    if (!bare) configSection.set('logallrefupdates', true);
+    coreSection.set('filemode', configFileMode);
+    coreSection.set('bare', bare);
+    if (!bare) coreSection.set('logallrefupdates', true);
+    config.setSection(coreSection);
 
     // Create directories
     var dirList = [
@@ -160,7 +162,7 @@ class GitRepo {
   GitReference readReference(String pathSpec) {
     var pathSpecMustMatch = true;
     GitReference _readReference(String pathSpec) {
-      var file = File(p.join(getGitDir().path, pathSpec));
+      var file = File(p.join(dotGitDir.path, pathSpec));
       if (!file.existsSync()) {
         if (pathSpecMustMatch) throw PathSpecNoMatchException(pathSpec);
         return GitReferenceHash(pathSpec.split('/'), null);
@@ -183,7 +185,7 @@ class GitRepo {
   }
 
   void writeReference(GitReference ref, [bool recursive = true]) {
-    var file = File(p.join(getGitDir().path, ref.pathSpec.join('/')));
+    var file = File(p.join(dotGitDir.path, ref.pathSpec.join('/')));
     if (!file.parent.existsSync()) file.parent.createSync(recursive: true);
     if (!file.existsSync()) file.createSync();
     file.writeAsBytesSync(ref.serialize());
@@ -193,7 +195,7 @@ class GitRepo {
   }
 
   bool deleteReference(List<String> pathSpec) {
-    var file = File(p.join(getGitDir().path, pathSpec.join('/')));
+    var file = File(p.join(dotGitDir.path, pathSpec.join('/')));
     try {
       file.deleteSync();
       return true;
@@ -206,9 +208,9 @@ class GitRepo {
 }
 
 extension RepoTree on GitRepo {
-  Directory get branchFolder => Directory(p.join(getGitDir().path, 'branches'));
+  Directory get branchFolder => Directory(p.join(dotGitDir.path, 'branches'));
 
-  Directory get refFolder => Directory(p.join(getGitDir().path, 'refs'));
+  Directory get refFolder => Directory(p.join(dotGitDir.path, 'refs'));
 
   Directory get refTagsFolder => Directory(p.join(refFolder.path, 'tags'));
 
@@ -216,22 +218,22 @@ extension RepoTree on GitRepo {
 
   Directory get refRemotesFolder => Directory(p.join(refFolder.path, 'remotes'));
 
-  Directory get objectsFolder => Directory(p.join(getGitDir().path, 'objects'));
+  Directory get objectsFolder => Directory(p.join(dotGitDir.path, 'objects'));
 
   Directory get objectsInfoFolder => Directory(p.join(objectsFolder.path, 'info'));
 
   Directory get objectsPackFolder => Directory(p.join(objectsFolder.path, 'pack'));
 
-  Directory get infoFolder => Directory(p.join(getGitDir().path, 'info'));
+  Directory get infoFolder => Directory(p.join(dotGitDir.path, 'info'));
 
   //Files
-  File get descFile => File(p.join(getGitDir().path, 'description'));
+  File get descFile => File(p.join(dotGitDir.path, 'description'));
 
-  File get configFile => File(p.join(getGitDir().path, 'config'));
+  File get configFile => File(p.join(dotGitDir.path, 'config'));
 
-  File get headFile => File(p.join(getGitDir().path, 'HEAD'));
+  File get headFile => File(p.join(dotGitDir.path, 'HEAD'));
 
   File get infoExcludeFile => File(p.join(infoFolder.path, 'exclude'));
 
-  File get indexFile => File(p.join(getGitDir().path, 'index'));
+  File get indexFile => File(p.join(dotGitDir.path, 'index'));
 }

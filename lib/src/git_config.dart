@@ -82,9 +82,9 @@ class GitConfigSection {
     _options[name] = option;
   }
 
-  void getRaw(String name) => _options[name].value;
+  String getRaw(String name) => _options[name].value.toString();
 
-  void getParsed(String name) => _options[name].getParsedValue();
+  dynamic getParsed(String name) => _options[name].getParsedValue();
 
   void remove(String name) => _options.remove(name);
 }
@@ -112,7 +112,8 @@ class GitConfig {
         // Section
         if (line[line.length - 1] != ']') throw exception;
         var header = line.substring(1, line.length - 1).trim();
-        currentSection = addSection(header);
+        currentSection = GitConfigSection(header);
+        setSection(currentSection);
         continue;
       } else if (splitLine.length == 2) {
         // Option
@@ -128,11 +129,7 @@ class GitConfig {
     }
   }
 
-  GitConfigSection addSection(String name) {
-    var section = GitConfigSection(name);
-    _sections[name] = section;
-    return section;
-  }
+  void setSection(GitConfigSection section) => _sections[section.name] = section;
 
   GitConfigSection getSection(String name) => _sections[name];
 

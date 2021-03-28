@@ -47,8 +47,8 @@ class BadNumericConfigValueException extends GitException {
 }
 
 // Commit
-class GitCommitCredentialsException extends GitException {
-  GitCommitCredentialsException() : super('fatal: author credentials missing from config');
+class MissingCredentialsException extends GitException {
+  MissingCredentialsException() : super('fatal: author credentials missing from config');
 }
 
 class NothingToCommitException extends GitException {

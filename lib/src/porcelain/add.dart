@@ -24,7 +24,7 @@ extension Add on GitRepo {
     var fullPath = p.normalize(p.join(dir.path, pathSpec));
     if (!fullPath.startsWith(dir.path)) {
       throw PathSpecOutsideRepoException(dir.path, pathSpec);
-    } else if (fullPath.startsWith(getGitDir().path)) return;
+    } else if (fullPath.startsWith(dotGitDir.path)) return;
 
     var index = readIndex();
 

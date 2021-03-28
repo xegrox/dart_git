@@ -96,9 +96,15 @@ class GitCommit extends GitObject with EquatableMixin {
 
   factory GitCommit.fromTree(GitTree tree, String message, GitConfig config, [List<GitHash> parentHashes = const []]) {
     var treeHash = tree.hash;
-    var section = config.getSection('user');
-    var name = section.getRaw('name') as String;
-    var email = section.getRaw('email') as String;
+    String name;
+    String email;
+    try {
+      var section = config.getSection('user');
+      name = section.getParsed('name') as String;
+      email = section.getParsed('email') as String;
+    } catch (_) {
+      throw MissingCredentialsException();
+    }
     var currentTime = DateTime.now();
     var userTimestamp = GitUserTimestamp(name, email, currentTime, currentTime.timeZoneOffset);
     var author = userTimestamp;

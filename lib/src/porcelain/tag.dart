@@ -14,8 +14,8 @@ extension Tag on GitRepo {
     if (message.isNotEmpty) {
       var config = readConfig();
       var section = config.getSection('user');
-      var userName = section.getRaw('name') as String;
-      var email = section.getRaw('email') as String;
+      var userName = section.getParsed('name') as String;
+      var email = section.getParsed('email') as String;
       var time = DateTime.now();
       var tagger = GitUserTimestamp(userName, email, time, time.timeZoneOffset);
       var tagObj = GitTag(objectHash, object.signature, name, tagger, message);
