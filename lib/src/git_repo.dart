@@ -44,14 +44,11 @@ class GitRepo {
 
     // Write git config
     var config = readConfig();
-    var coreSectionName = 'core';
-    var coreSection = config.getSection(coreSectionName) ?? GitConfigSection(coreSectionName);
-    coreSection.set('repositoryformatversion', 0);
-    var configFileMode = (Platform.isWindows) ? false : true;
-    coreSection.set('filemode', configFileMode);
-    coreSection.set('bare', bare);
-    if (!bare) coreSection.set('logallrefupdates', true);
-    config.setSection(coreSection);
+    var section = 'core';
+    config.setValue(section, 'repositoryformatversion', '0');
+    config.setValue(section, 'filemode', (!Platform.isWindows).toString());
+    config.setValue(section, 'bare', bare.toString());
+    if (!bare) config.setValue(section, 'logallrefupdates', true.toString());
     writeConfig(config);
 
     // Create directories

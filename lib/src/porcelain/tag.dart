@@ -1,4 +1,5 @@
 import 'package:dart_git/src/exceptions.dart';
+import 'package:dart_git/src/git_config.dart';
 import 'package:dart_git/src/git_hash.dart';
 import 'package:dart_git/src/git_repo.dart';
 import 'package:dart_git/src/plumbing/objects/object.dart';
@@ -13,11 +14,10 @@ extension Tag on GitRepo {
     // Write annotated tag object
     if (message.isNotEmpty) {
       var config = readConfig();
-      var section = config.getSection('user');
-      var userName = section.getParsed('name') as String;
-      var email = section.getParsed('email') as String;
+      var name = config.getValue<GitConfigValueString>('user', 'name').value;
+      var email = config.getValue<GitConfigValueString>('user', 'email').value;
       var time = DateTime.now();
-      var tagger = GitUserTimestamp(userName, email, time, time.timeZoneOffset);
+      var tagger = GitUserTimestamp(name, email, time, time.timeZoneOffset);
       var tagObj = GitTag(objectHash, object.signature, name, tagger, message);
       writeObject(tagObj);
       refHash = tagObj.hash;

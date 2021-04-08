@@ -36,17 +36,18 @@ void main() {
 
   GitRepo repo;
 
-  group('Test git init', () {
+  group('Test init', () {
     test('When_InitDir_Should_Succeed', () {
       repo = GitRepo.init(sandboxDir);
       repo.validate();
     });
 
+    // TODO: mock config modification
     test('When_ReinitRepo_Should_RetainConfigValuesAndModifiedFiles', () {
+      var section = 'core';
       var config = repo.readConfig();
-      var coreSection = config.getSection('core');
-      coreSection.set('dummy', '0');
-      coreSection.set('logallrefupdates', false);
+      config.setValue(section, 'dummy', '0');
+      config.setValue(section, 'logallrefupdates', 'false');
       repo.writeConfig(config);
       var headFile = File(p.join(repo.dotGitDir.path, 'HEAD'));
       headFile.writeAsStringSync('ref: refs/heads/dummy');
@@ -55,9 +56,8 @@ void main() {
       repo.validate();
 
       config = repo.readConfig();
-      coreSection = config.getSection('core');
-      expect(coreSection.getRaw('dummy'), '0');
-      expect(coreSection.getParsed('logallrefupdates'), true);
+      expect(config.getValue<GitConfigValueInt>(section, 'dummy').value, 0);
+      expect(config.getValue<GitConfigValueBool>(section, 'logallrefupdates').value, true);
       expect(headFile.readAsStringSync(), 'ref: refs/heads/dummy');
       headFile.writeAsStringSync('ref: refs/heads/master');
     });
@@ -67,7 +67,7 @@ void main() {
     });
   });
 
-  group('Test git add', () {
+  group('Test add', () {
     test('When_FileNotExists_Should_ThrowException', () {
       expect(() => repo.add('dummy'), throwsA(TypeMatcher<PathSpecNoMatchException>()));
     });
@@ -109,7 +109,7 @@ void main() {
     });
   });
 
-  group(('Test git commit'), () {
+  group(('Test commit'), () {
     test(('When_NoCredentials_Should_ThrowException'), () {
       expect(() => repo.commit('Initial commit'), throwsA(TypeMatcher<MissingCredentialsException>()));
     });
@@ -117,10 +117,9 @@ void main() {
     test(('When_HaveCredentials_Should_CreateRefAndObjects'), () {
       // Write credentials
       var config = repo.readConfig();
-      var section = GitConfigSection('user');
-      section.set('name', 'dummy');
-      section.set('email', 'dummy@mymail.com');
-      config.setSection(section);
+      var section = 'user';
+      config.setValue(section, 'name', 'dummy');
+      config.setValue(section, 'email', 'dummy@mymail.com');
       repo.writeConfig(config);
 
       var commitHash = repo.commit('Initial commit');
@@ -144,7 +143,7 @@ void main() {
     });
   });
 
-  group(('Test git remove'), () {
+  group(('Test remove'), () {
     test('When_FileNotExists_Should_ThrowException', () {
       expect(() => repo.rm('dummy'), throwsA(TypeMatcher<PathSpecNoMatchException>()));
     });
@@ -214,7 +213,7 @@ void main() {
     });
   });
 
-  group('Test git status', () {
+  group('Test status', () {
     test('When_RemoveFile_Should_StagedDeleted', () {
       var status = repo.status();
       expect(status.getStagedPaths()[path_spec_2], GitFileStatus.deleted);
@@ -252,7 +251,7 @@ void main() {
     });
   });
 
-  group('Test git tag', () {
+  group('Test tag', () {
     var tagObjHash = TestObjHashes.blob_1;
 
     test('When_NoAnnotation_Should_CreateRef', () {
