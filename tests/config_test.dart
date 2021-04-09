@@ -254,5 +254,13 @@ void main() {
       expect(lines[0], '[core]');
       expect(lines[1].trim(), r'dummy = \t\n\"\\');
     });
+
+    test('When_ValueIsNull_Should_OnlyWriteVarName', () {
+      var config = GitConfig();
+      config.setValue('core', 'dummy', null);
+      var lines = String.fromCharCodes(config.serialize()).split('\n');
+      expect(lines[0], '[core]');
+      expect(lines[1].trim(), 'dummy');
+    });
   });
 }
