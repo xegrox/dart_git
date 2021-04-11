@@ -27,7 +27,7 @@ class GitPackFileEntry {
   final int size;
   final Uint8List content;
 
-  final GitPackFileEntry baseObjEntry;
+  final GitPackFileEntry? baseObjEntry;
 
   static final _vlqCodec = GitVLQCodec(offset: false, endian: Endian.little);
 
@@ -42,13 +42,12 @@ class GitPackFileEntry {
     if (type < 1 || type > 7 || type == 5) throw GitPackFileException('Invalid object type \'$type\'');
     var size = ((header >> 7) << 4) | (header & 0x0f);
 
-    GitPackFileEntry baseObj;
+    GitPackFileEntry? baseObj;
     switch (type) {
       case GitPackObjectId.ref_delta:
         //var baseObjHash = GitHash.fromBytes(reader.read(20));
         // TODO: parse ref delta
         throw UnimplementedError();
-        break;
       case GitPackObjectId.ofs_delta:
         var n = GitVLQCodec(offset: true, endian: Endian.big).decode(reader);
         var baseObjOffset = offset - n;
@@ -95,7 +94,7 @@ class GitPackFile {
       case GitPackObjectId.blob:
         return GitBlob.fromBytes(entry.content);
       case GitPackObjectId.ofs_delta:
-        var baseObj = getObject(entry.baseObjEntry.offset);
+        var baseObj = getObject(entry.baseObjEntry!.offset);
         var baseObjContent = baseObj.serializeContent();
         var reader = ByteDataReader();
         reader.add(entry.content);
@@ -117,5 +116,6 @@ class GitPackFile {
       case GitPackObjectId.ref_delta:
         throw UnimplementedError();
     }
+    throw GitPackFileException('Invalid entry object type ${entry.type}');
   }
 }

@@ -88,40 +88,46 @@ void main() {
         var raw = '[core] dummy';
         var bytes = Uint8List.fromList(raw.codeUnits);
         var config = GitConfig.fromBytes(bytes);
-        expect(config.getValue('core', 'dummy'), GitConfigValueString(''));
+        expect(config.containsKey('core', 'dummy'), true);
       });
 
       test('When_VarAfterSectionOnNewline_Should_BelongToSection', () {
         var raw = '[core]\n dummy';
         var bytes = Uint8List.fromList(raw.codeUnits);
         var config = GitConfig.fromBytes(bytes);
-        expect(config.getValue('core', 'dummy'), GitConfigValueString(''));
+        expect(config.containsKey('core', 'dummy'), true);
       });
 
       test('When_VarSectionHasUppercase_Should_ConvertToLowercase', () {
         var raw = '[cOrE] dummy';
         var bytes = Uint8List.fromList(raw.codeUnits);
         var config = GitConfig.fromBytes(bytes);
-        expect(config.getValue('core', 'dummy'), GitConfigValueString(''));
+        expect(config.containsKey('core', 'dummy'), true);
       });
 
       test('When_VarHasSubsection_Should_BelongToSubsection', () {
         var raw = '[core "dUmMy1!@#"] dummy';
         var bytes = Uint8List.fromList(raw.codeUnits);
         var config = GitConfig.fromBytes(bytes);
-        expect(config.getValue('core', 'dummy', subsection: 'dUmMy1!@#'), GitConfigValueString(''));
+        expect(config.containsKey('core', 'dummy', subsection: 'dUmMy1!@#'), true);
       });
 
       test('When_VarHasDeprecatedSubsection_Should_BelongToSubsection', () {
         var raw = '[core.dummy] dummy';
         var bytes = Uint8List.fromList(raw.codeUnits);
         var config = GitConfig.fromBytes(bytes);
-        expect(config.getValue('core', 'dummy', subsection: 'dummy'), GitConfigValueString(''));
+        expect(config.containsKey('core', 'dummy', subsection: 'dummy'), true);
       });
 
       // Variable name related tests
       test('When_VarNameNotAlphaNumericDash_Should_ThrowException', () {
         var raw = '[core] dummy.';
+        var bytes = Uint8List.fromList(raw.codeUnits);
+        expect(() => GitConfig.fromBytes(bytes), throwsA(TypeMatcher<BadConfigLineException>()));
+      });
+
+      test('When_VarNameStartsWithDash_Should_ThrowException', () {
+        var raw = '[core] -dummy';
         var bytes = Uint8List.fromList(raw.codeUnits);
         expect(() => GitConfig.fromBytes(bytes), throwsA(TypeMatcher<BadConfigLineException>()));
       });
@@ -136,7 +142,7 @@ void main() {
         var raw = '[core] dUmMy';
         var bytes = Uint8List.fromList(raw.codeUnits);
         var config = GitConfig.fromBytes(bytes);
-        expect(config.getValue('core', 'dummy'), GitConfigValueString(''));
+        expect(config.containsKey('core', 'dummy'), true);
       });
 
       test('When_VarNameFollowedByComment_Should_ThrowException', () {
@@ -151,25 +157,33 @@ void main() {
     });
 
     group('Test config value', () {
+      test('When_ValueIsMissing_Should_ReturnNull', () {
+        var raw = '[core] dummy';
+        var bytes = Uint8List.fromList(raw.codeUnits);
+        var config = GitConfig.fromBytes(bytes);
+        expect(config.containsKey('core', 'dummy'), true);
+        expect(config.getValue('core', 'dummy'), null);
+      });
+
       test('When_ValueHasTrailingSpace_Should_TrimSpace', () {
         var raw = '[core] dummy = dummy\t ';
         var bytes = Uint8List.fromList(raw.codeUnits);
         var config = GitConfig.fromBytes(bytes);
-        expect(config.getValue<GitConfigValueString>('core', 'dummy').value, 'dummy');
+        expect(config.getValue<GitConfigValueString>('core', 'dummy')!.value, 'dummy');
       });
 
       test('When_ValueHasValidEscapeChars_Should_FormatValue', () {
         var raw = r'[core] dummy = \ta\b\n\\\"';
         var bytes = Uint8List.fromList(raw.codeUnits);
         var config = GitConfig.fromBytes(bytes);
-        expect(config.getValue<GitConfigValueString>('core', 'dummy').value, '\t\n\\"');
+        expect(config.getValue<GitConfigValueString>('core', 'dummy')!.value, '\t\n\\"');
       });
 
       test('When_ValueStartsWithBackspace_Should_Ignore', () {
         var raw = r'[core] dummy = \bdummy';
         var bytes = Uint8List.fromList(raw.codeUnits);
         var config = GitConfig.fromBytes(bytes);
-        expect(config.getValue<GitConfigValueString>('core', 'dummy').value, 'dummy');
+        expect(config.getValue<GitConfigValueString>('core', 'dummy')!.value, 'dummy');
       });
 
       test('When_ValueHasOpenDQuote_Should_ThrowException', () {
@@ -182,46 +196,46 @@ void main() {
         var raw = r'[core] dummy = "#d;ummy"#';
         var bytes = Uint8List.fromList(raw.codeUnits);
         var config = GitConfig.fromBytes(bytes);
-        expect(config.getValue<GitConfigValueString>('core', 'dummy').value, '#d;ummy');
+        expect(config.getValue<GitConfigValueString>('core', 'dummy')!.value, '#d;ummy');
       });
 
       test('When_ValueInClosedDQuote_Should_IncludeSpace', () {
         var raw = '[core] dummy = "dumm\ty "\t';
         var bytes = Uint8List.fromList(raw.codeUnits);
         var config = GitConfig.fromBytes(bytes);
-        expect(config.getValue<GitConfigValueString>('core', 'dummy').value, 'dumm\ty ');
+        expect(config.getValue<GitConfigValueString>('core', 'dummy')!.value, 'dumm\ty ');
       });
 
       test('When_ValueFollowedByComment_Should_IgnoreCommentAndTrailingSpace', () {
         var raw = '[core] dummy = dummy\t #dummy';
         var bytes = Uint8List.fromList(raw.codeUnits);
         var config = GitConfig.fromBytes(bytes);
-        expect(config.getValue<GitConfigValueString>('core', 'dummy').value, 'dummy');
+        expect(config.getValue<GitConfigValueString>('core', 'dummy')!.value, 'dummy');
 
         raw = '[core] dummy = dummy\t ;dummy';
         bytes = Uint8List.fromList(raw.codeUnits);
         config = GitConfig.fromBytes(bytes);
-        expect(config.getValue<GitConfigValueString>('core', 'dummy').value, 'dummy');
+        expect(config.getValue<GitConfigValueString>('core', 'dummy')!.value, 'dummy');
       });
 
       test('When_ValueContainsWhitespace_Should_ReplaceWithRegularSpace', () {
         var raw = '[core] dummy = dum\tm y';
         var bytes = Uint8List.fromList(raw.codeUnits);
         var config = GitConfig.fromBytes(bytes);
-        expect(config.getValue<GitConfigValueString>('core', 'dummy').value, 'dum m y');
+        expect(config.getValue<GitConfigValueString>('core', 'dummy')!.value, 'dum m y');
       });
 
       test('When_VarHasMultipleValues_Should_ReturnAllValues', () {
         var raw = '[core] dummy = dummy1 \n dummy = dummy2 \n dummy = dummy3';
         var bytes = Uint8List.fromList(raw.codeUnits);
         var config = GitConfig.fromBytes(bytes);
-        var values = config.getAllValues<GitConfigValueString>('core', 'dummy');
+        var values = config.getAllValues<GitConfigValueString>('core', 'dummy')!;
         expect(values.length, 3);
-        expect(values[0].value, 'dummy1');
-        expect(values[1].value, 'dummy2');
-        expect(values[2].value, 'dummy3');
+        expect(values[0]!.value, 'dummy1');
+        expect(values[1]!.value, 'dummy2');
+        expect(values[2]!.value, 'dummy3');
         // getValue should return the last value
-        expect(config.getValue<GitConfigValueString>('core', 'dummy').value, values.last.value);
+        expect(config.getValue<GitConfigValueString>('core', 'dummy')!.value, values.last!.value);
       });
     });
   });

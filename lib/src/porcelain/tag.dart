@@ -14,10 +14,11 @@ extension Tag on GitRepo {
     // Write annotated tag object
     if (message.isNotEmpty) {
       var config = readConfig();
-      var name = config.getValue<GitConfigValueString>('user', 'name').value;
-      var email = config.getValue<GitConfigValueString>('user', 'email').value;
+      var username = config.getValue<GitConfigValueString>('user', 'name');
+      var email = config.getValue<GitConfigValueString>('user', 'email');
+      if (username == null || email == null) throw MissingCredentialsException();
       var time = DateTime.now();
-      var tagger = GitUserTimestamp(name, email, time, time.timeZoneOffset);
+      var tagger = GitUserTimestamp(username.value, email.value, time, time.timeZoneOffset);
       var tagObj = GitTag(objectHash, object.signature, name, tagger, message);
       writeObject(tagObj);
       refHash = tagObj.hash;

@@ -3,7 +3,6 @@ import 'dart:typed_data';
 
 import 'package:buffer/buffer.dart';
 import 'package:equatable/equatable.dart';
-import 'package:meta/meta.dart';
 
 import 'package:dart_git/src/exceptions.dart';
 import 'package:dart_git/src/git_hash.dart';
@@ -12,7 +11,7 @@ import 'package:dart_git/src/plumbing/objects/object.dart';
 import 'package:dart_git/src/plumbing/utils.dart';
 
 class GitTreeEntry extends Equatable {
-  GitTreeEntry({@required this.mode, @required this.name, @required this.hash});
+  GitTreeEntry({required this.mode, required this.name, required this.hash});
 
   final String name;
   final GitFileMode mode;

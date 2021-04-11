@@ -28,7 +28,7 @@ extension Add on GitRepo {
 
     var index = readIndex();
 
-    FileSystemEntity target;
+    late FileSystemEntity target;
     var targetType = FileSystemEntity.typeSync(fullPath, followLinks: false);
     switch (targetType) {
       case FileSystemEntityType.file:
@@ -124,7 +124,6 @@ extension Add on GitRepo {
     }
 
     addRecursively(target);
-
     writeIndex(index);
   }
 }

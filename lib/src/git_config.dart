@@ -6,36 +6,40 @@ import 'package:equatable/equatable.dart';
 
 import 'package:dart_git/src/exceptions.dart';
 
-abstract class GitConfigValue {}
+abstract class GitConfigValue {
+  final String rawValue;
 
-class GitConfigValueBool extends Equatable implements GitConfigValue {
-  final bool value;
+  dynamic get value;
 
-  GitConfigValueBool._(this.value);
+  GitConfigValue(this.rawValue);
+}
 
-  factory GitConfigValueBool(String raw) {
+class GitConfigValueBool extends GitConfigValue with EquatableMixin {
+  GitConfigValueBool(String raw) : super(raw);
+
+  @override
+  bool get value {
     var regexTrue = RegExp(r'yes|on|true|1');
     var regexFalse = RegExp(r'no|off|false|0');
-    if (regexTrue.hasMatch(raw)) return GitConfigValueBool._(true);
-    if (regexFalse.hasMatch(raw)) return GitConfigValueBool._(false);
-    throw GitException('Bad value for boolean \'$raw\'');
+    if (regexTrue.hasMatch(rawValue)) return true;
+    if (regexFalse.hasMatch(rawValue)) return false;
+    throw GitException('Bad value for boolean \'$rawValue\'');
   }
 
   @override
   List<Object> get props => [value];
 }
 
-class GitConfigValueInt extends Equatable implements GitConfigValue {
-  final int value;
+class GitConfigValueInt extends GitConfigValue with EquatableMixin {
+  GitConfigValueInt(String raw) : super(raw);
 
-  GitConfigValueInt._(this.value);
-
-  factory GitConfigValueInt(String raw) {
-    var regex = RegExp(r'^[0-9]+[kmg]?$', caseSensitive: false);
-    if (!regex.hasMatch(raw)) throw GitException('Bad value for int \'$raw\'');
-
-    var value = int.parse(RegExp('^[0-9]').stringMatch(raw));
-    var unit = RegExp(r'[kmg]$', caseSensitive: false).stringMatch(raw)?.toLowerCase();
+  @override
+  int get value {
+    var regex = RegExp(r'^([0-9]+)([kmg])?$', caseSensitive: false);
+    var match = regex.firstMatch(rawValue);
+    if (match == null) throw GitException('Bad value for int \'$rawValue\'');
+    var value = int.parse(match[1]!);
+    var unit = match[2];
     switch (unit) {
       case 'k':
         value *= 1024;
@@ -47,35 +51,39 @@ class GitConfigValueInt extends Equatable implements GitConfigValue {
         value *= 1024 * 1024 * 1024;
         break;
     }
-    return GitConfigValueInt._(value);
+    return value;
   }
 
   @override
   List<Object> get props => [value];
 }
 
-class GitConfigValueColor extends Equatable implements GitConfigValue {
-  final String value;
+class GitConfigValueColor extends GitConfigValue with EquatableMixin {
+  GitConfigValueColor(String raw) : super(raw);
 
-  GitConfigValueColor(this.value);
+  // TODO: parse config color value
+  @override
+  String get value => rawValue;
 
   @override
   List<Object> get props => [value];
 }
 
-class GitConfigValuePath extends Equatable implements GitConfigValue {
-  final String value;
+class GitConfigValuePath extends GitConfigValue with EquatableMixin {
+  GitConfigValuePath(String raw) : super(raw);
 
-  GitConfigValuePath(this.value);
+  @override
+  String get value => rawValue;
 
   @override
   List<Object> get props => [value];
 }
 
-class GitConfigValueString extends Equatable implements GitConfigValue {
-  final String value;
+class GitConfigValueString extends GitConfigValue with EquatableMixin {
+  GitConfigValueString(String raw) : super(raw);
 
-  GitConfigValueString(this.value);
+  @override
+  String get value => rawValue;
 
   @override
   List<Object> get props => [value];
@@ -83,7 +91,7 @@ class GitConfigValueString extends Equatable implements GitConfigValue {
 
 class _RawValuesKey extends Equatable {
   final String section;
-  final String subsection;
+  final String? subsection;
   final String name;
 
   _RawValuesKey(this.section, this.subsection, this.name);
@@ -94,7 +102,7 @@ class _RawValuesKey extends Equatable {
 }
 
 class GitConfig {
-  final _values = <_RawValuesKey, List<String>>{};
+  final _values = <_RawValuesKey, List<String?>>{};
 
   GitConfig();
 
@@ -102,8 +110,8 @@ class GitConfig {
     var config = GitConfig();
     var lines = ascii.decode(data).split(RegExp('\n'));
 
-    String currentSection;
-    String currentSubsection;
+    String? currentSection;
+    String? currentSubsection;
     for (var i = 0; i < lines.length; i++) {
       var exception = BadConfigLineException(i + 1);
       var line = lines[i].trimLeft();
@@ -117,23 +125,25 @@ class GitConfig {
         var match = regex.firstMatch(s);
         if (match == null) throw exception;
 
-        currentSection = match[1].toLowerCase();
+        currentSection = match[1]!.toLowerCase();
         currentSubsection = null;
 
         // Parse subsection
+        // Throw exception if subsection ends with '\', or contains unescaped '"'
+        // Escape any character that is preceded by '\'
+
         var rawSubsection = match[2];
         if (rawSubsection != null) {
           currentSubsection = '';
           for (var p = 0; p < rawSubsection.length; p++) {
             var c = rawSubsection[p];
             if (c == r'\') {
-              p++;
-              if (p >= match[2].length) throw exception;
-              currentSubsection += rawSubsection[p];
+              if (++p >= rawSubsection.length) throw exception;
+              currentSubsection = currentSubsection! + rawSubsection[p];
             } else if (c == '"') {
               throw exception;
             } else {
-              currentSubsection += c;
+              currentSubsection = currentSubsection! + c;
             }
           }
         }
@@ -147,46 +157,41 @@ class GitConfig {
       var valueIndex = line.indexOf('=');
       if (valueIndex != -1) name = line.substring(0, valueIndex).toLowerCase().trim();
       if (name.isEmpty || name.startsWith(RegExp('#|;'))) continue;
-      if (!RegExp(r'^[a-z0-9-]*$').hasMatch(name)) throw exception;
+      if (!RegExp(r'^[a-z0-9][a-z0-9-]*$').hasMatch(name)) throw exception;
 
       // Parse value
-      var value = '';
+      String? value;
       if (valueIndex != -1) {
+        var fmtValue = '';
         var rawValue = line.substring(valueIndex + 1, line.length).trim();
-        var runes = rawValue.runes;
 
         // Format value
         var quote = false;
         var space = 0;
-        for (var p = 0; p < runes.length; p++) {
-          var c = String.fromCharCode(runes.elementAt(p));
-
+        for (var p = 0; p < rawValue.length; p++) {
+          var c = rawValue[p];
           if (c == r'\') {
-            if (p == runes.length - 1) {
+            if (p == rawValue.length - 1) {
+              // TODO: test this
               // '\' is the last char, append next line
-              rawValue = rawValue.substring(0, rawValue.length - 1);
-              if (i < line.length - 1) {
-                i++;
-                rawValue += line[i];
-                runes = rawValue.runes;
-              }
+              if (++i < line.length - 1) rawValue += lines[i];
               continue;
             }
-            p++;
-            c = String.fromCharCode(runes.elementAt(p));
+
+            c = rawValue[++p];
             switch (c) {
               case 't':
-                value += '\t';
+                fmtValue += '\t';
                 break;
               case 'b':
-                if (value.isNotEmpty) value = value.substring(0, value.length - 1);
+                if (fmtValue.isNotEmpty) fmtValue = fmtValue.substring(0, fmtValue.length - 1);
                 break;
               case 'n':
-                value += '\n';
+                fmtValue += '\n';
                 break;
               case r'\':
               case '"':
-                value += c;
+                fmtValue += c;
                 break;
               default:
                 throw exception;
@@ -206,13 +211,13 @@ class GitConfig {
 
           if (!quote && ['#', ';'].contains(c)) break;
 
-          value += ''.padLeft(space);
+          fmtValue += ''.padLeft(space);
           space = 0;
 
-          value += c;
+          fmtValue += c;
         }
-
         if (quote) throw exception;
+        value = fmtValue;
       }
 
       if (currentSection == null) throw exception;
@@ -221,24 +226,28 @@ class GitConfig {
     return config;
   }
 
-  void addValue(String section, String name, String value, {String subsection}) {
+  void addValue(String section, String name, String? value, {String? subsection}) {
     var key = _RawValuesKey(section, subsection, name);
-    _values.putIfAbsent(key, () => []);
-    _values[key].add(value);
+    _values.putIfAbsent(key, () => []).add(value);
   }
 
-  void setValue(String section, String name, String value, {String subsection}) {
+  void setValue(String section, String name, String? value, {String? subsection}) {
     var key = _RawValuesKey(section, subsection, name);
-    _values.putIfAbsent(key, () => []);
-    _values[key].clear();
-    _values[key].add(value);
+    _values.putIfAbsent(key, () => [])
+      ..clear()
+      ..add(value);
   }
 
-  List<T> getAllValues<T extends GitConfigValue>(String section, String name, {String subsection}) {
+  bool containsKey(String section, String name, {String? subsection}) {
     var key = _RawValuesKey(section, subsection, name);
-    if (!_values.containsKey(key)) return null;
+    return _values.containsKey(key);
+  }
+
+  List<T?>? getAllValues<T extends GitConfigValue>(String section, String name, {String? subsection}) {
+    var key = _RawValuesKey(section, subsection, name);
     // Deprecated section.subsection format
-    return _values[key].map<T>((value) {
+    return _values[key]?.map<T?>((value) {
+      if (value == null) return null;
       try {
         switch (T) {
           case GitConfigValueBool:
@@ -258,33 +267,33 @@ class GitConfig {
     }).toList();
   }
 
-  T getValue<T extends GitConfigValue>(String section, String name, {String subsection}) {
+  T? getValue<T extends GitConfigValue>(String section, String name, {String? subsection}) {
     var values = getAllValues<T>(section, name, subsection: subsection);
-    if (values == null || values.isEmpty) return null;
-    return values.last;
+    return values?.last;
   }
 
   Uint8List serialize() {
     var lines = <String>[];
-    var sections = SplayTreeMap<String, Map<String, String>>();
+    // Map<SectionName, Map<VariableName, ListOfValues>>
+    var sections = SplayTreeMap<String, Map<String, List<String?>>>();
 
     // Arrange the values into sections
     _values.forEach((key, values) {
-      var section = key.section;
-      if (key.subsection != null) section += ' "${key.subsection}"';
-      sections.putIfAbsent(section, () => {});
-      if (values.isEmpty) sections[section][key.name] = null;
-      values.forEach((value) {
-        sections[section][key.name] = value;
-      });
+      var sectionName = key.section;
+      if (key.subsection != null) sectionName += ' "${key.subsection}"';
+      var section = sections.putIfAbsent(sectionName, () => {});
+      section[key.name] = values;
     });
 
     // Format into lines
-    sections.forEach((name, keys) {
+    sections.forEach((name, variables) {
       lines.add('[$name]');
-      keys.forEach((key, value) {
-        var line = '\t' + key;
-        if (value != null) {
+      variables.forEach((key, values) {
+        values.forEach((value) {
+          if (value == null) {
+            lines.add('\t' + key);
+            return;
+          }
           // Format value
           var quote = false;
           if (value.isNotEmpty) {
@@ -293,9 +302,8 @@ class GitConfig {
           }
 
           var fmtValue = '';
-          var runes = value.runes;
-          for (var i = 0; i < runes.length; i++) {
-            var c = String.fromCharCode(runes.elementAt(i));
+          for (var i = 0; i < value.length; i++) {
+            var c = value[i];
             switch (c) {
               case '\n':
                 fmtValue += r'\n';
@@ -311,10 +319,10 @@ class GitConfig {
                 fmtValue += c;
             }
           }
+
           if (quote) fmtValue = '"$fmtValue"';
-          line += ' = $fmtValue';
-        }
-        lines.add(line);
+          lines.add('\t' + key + ' = ' + fmtValue);
+        });
       });
       lines.add('');
     });

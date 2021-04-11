@@ -34,7 +34,7 @@ void main() {
     fixture(path_spec_3).copySync(p.join(sandboxDir.path, path_spec_sub_3));
   });
 
-  GitRepo repo;
+  late GitRepo repo;
 
   group('Test init', () {
     test('When_InitDir_Should_Succeed', () {
@@ -56,8 +56,8 @@ void main() {
       repo.validate();
 
       config = repo.readConfig();
-      expect(config.getValue<GitConfigValueInt>(section, 'dummy').value, 0);
-      expect(config.getValue<GitConfigValueBool>(section, 'logallrefupdates').value, true);
+      expect(config.getValue<GitConfigValueInt>(section, 'dummy')!.value, 0);
+      expect(config.getValue<GitConfigValueBool>(section, 'logallrefupdates')!.value, true);
       expect(headFile.readAsStringSync(), 'ref: refs/heads/dummy');
       headFile.writeAsStringSync('ref: refs/heads/master');
     });
@@ -263,7 +263,7 @@ void main() {
     test('When_HaveAnnotation_Should_CreateRefAndObj', () {
       repo.writeTag('tag_2', tagObjHash, 'dummy');
       var tagRef = repo.readReference('refs/tags/tag_2') as GitReferenceHash;
-      var tagObj = repo.readObject(tagRef.hash);
+      var tagObj = repo.readObject(tagRef.hash!);
       expect(tagObj.signature, GitObjectSignature.tag);
       expect((tagObj as GitTag).objectHash, tagObjHash);
     });

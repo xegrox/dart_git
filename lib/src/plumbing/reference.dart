@@ -15,7 +15,7 @@ abstract class GitReference {
   // Path of ref relative to .git (e.g. HEAD, refs/heads/master) split by '/'
   final List<String> pathSpec;
 
-  GitReference(this.pathSpec) {
+  GitReference(List<String> pathSpec) : pathSpec = List.unmodifiable(pathSpec) {
     pathSpec.forEach((name) {
       var exception = GitException('Invalid pathSpec name \'$name\' for ref');
       if (name.isEmpty || name[0] == '.') throw exception;
@@ -28,7 +28,7 @@ abstract class GitReference {
   GitReferenceHash revParse() {
     var r = this;
     while (r is GitReferenceSymbolic) {
-      r = (r as GitReferenceSymbolic).target;
+      r = r.target;
     }
     return r as GitReferenceHash;
   }
@@ -45,16 +45,16 @@ abstract class GitReference {
 class GitReferenceSymbolic extends GitReference {
   final GitReference target;
 
-  GitReferenceSymbolic(List<String> pathSpec, this.target) : super(List.unmodifiable(pathSpec));
+  GitReferenceSymbolic(List<String> pathSpec, this.target) : super(pathSpec);
 
   @override
   Uint8List serialize() => ascii.encode('ref: ${target.pathSpec.join('/')}');
 }
 
 class GitReferenceHash extends GitReference {
-  final GitHash hash;
+  final GitHash? hash;
 
-  GitReferenceHash(List<String> pathSpec, this.hash) : super(List.unmodifiable(pathSpec));
+  GitReferenceHash(List<String> pathSpec, this.hash) : super(pathSpec);
 
   @override
   Uint8List serialize() => ascii.encode(hash.toString());

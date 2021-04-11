@@ -3,7 +3,6 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:buffer/buffer.dart';
-import 'package:meta/meta.dart';
 import 'package:path/path.dart' as p;
 
 import 'package:dart_git/src/git_hash.dart';
@@ -31,23 +30,24 @@ class GitIdxExtCachedTreeEntry {
   String path;
   int numEntries;
   int numSubtrees;
-  GitHash hash;
+  GitHash? hash;
 
   GitIdxExtCachedTreeEntry(
-      {@required this.path, @required this.numEntries, @required this.numSubtrees, @required this.hash});
+      {required this.path, required this.numEntries, required this.numSubtrees, required this.hash});
 
-  GitIdxExtCachedTreeEntry.fromTree(this.path, GitTree tree) {
-    numEntries = tree.entries.length;
-    numSubtrees = 0;
+  factory GitIdxExtCachedTreeEntry.fromTree(String path, GitTree tree) {
+    var numEntries = tree.entries.length;
+    var numSubtrees = 0;
     tree.entries.forEach((entry) {
       if (entry.mode == GitFileMode.dir) numSubtrees++;
     });
-    hash = tree.hash;
+    var hash = tree.hash;
+    return GitIdxExtCachedTreeEntry(path: path, numEntries: numEntries, numSubtrees: numSubtrees, hash: hash);
   }
 
   void invalidate() => numEntries = -1;
 
-  bool isValid() => !numEntries.isNegative;
+  bool isValid() => !numEntries.isNegative || hash != null;
 }
 
 class GitIdxExtCachedTree extends GitIndexExtension {
@@ -66,7 +66,7 @@ class GitIdxExtCachedTree extends GitIndexExtension {
       var path = ascii.decode(reader.readUntil(0x00));
       var numEntries = int.parse(ascii.decode(reader.readUntil(0x20)));
       var numSubtrees = int.parse(ascii.decode(reader.readUntil(0x0a)));
-      GitHash hash;
+      GitHash? hash;
       if (!numEntries.isNegative) hash = GitHash.fromBytes(reader.read(20));
       var entry = GitIdxExtCachedTreeEntry(path: path, numEntries: numEntries, numSubtrees: numSubtrees, hash: hash);
       ext.addEntry(entry);
@@ -85,30 +85,29 @@ class GitIdxExtCachedTree extends GitIndexExtension {
 
   void invalidateTree(String path) {
     var treePath = path;
-    while (treePath != '.') {
+    while (true) {
       getEntry(treePath)?.invalidate();
+      if (treePath == '.') break;
       treePath = p.dirname(path);
     }
-    getEntry('')?.invalidate(); // Invalidate root path
   }
 
   void addEntry(GitIdxExtCachedTreeEntry entry) => _entries[entry.path] = entry;
 
-  GitIdxExtCachedTreeEntry getEntry(String path) => _entries[path];
+  GitIdxExtCachedTreeEntry? getEntry(String path) => _entries[path];
 
   @override
   Uint8List serializeContent() {
     var data = <int>[];
     _entries.forEach((path, entry) {
+      var valid = entry.isValid();
       data.addAll(ascii.encode(entry.path));
       data.add(0x00);
-      data.addAll(ascii.encode(entry.numEntries.toString()));
+      data.addAll(ascii.encode(valid ? entry.numEntries.toString() : '-1'));
       data.add(0x20); // A space (ASCII 32)
       data.addAll(ascii.encode(entry.numSubtrees.toString()));
       data.add(0x0a); // A newline (ASCII 10)
-      if (!entry.numEntries.isNegative) {
-        data.addAll(entry.hash.bytes);
-      }
+      if (valid) data.addAll(entry.hash!.bytes);
     });
     return Uint8List.fromList(data);
   }

@@ -4,7 +4,6 @@ import 'dart:typed_data';
 
 import 'package:buffer/buffer.dart';
 import 'package:equatable/equatable.dart';
-import 'package:meta/meta.dart';
 import 'package:path/path.dart' as p;
 
 import 'package:dart_git/src/exceptions.dart';
@@ -15,68 +14,68 @@ import 'package:dart_git/src/plumbing/objects/tree.dart';
 import 'package:dart_git/src/plumbing/utils.dart';
 
 class GitIndexEntry {
-  int version;
-  GitIndexTimestamp cTime;
-  GitIndexTimestamp mTime;
-  int device;
-  int inode;
-  GitFileMode mode;
-  int uid;
-  int gid;
-  int fileSize;
-  GitHash hash;
-  GitFileStage stage;
-  String path;
-  bool assumeValid;
-  bool extended;
-  bool skipWorkTree;
-  bool intentToAdd;
+  final int version;
+  final GitIndexTimestamp cTime;
+  final GitIndexTimestamp mTime;
+  final int device;
+  final int inode;
+  final GitFileMode mode;
+  final int uid;
+  final int gid;
+  final int fileSize;
+  final GitHash hash;
+  final GitFileStage stage;
+  final String path;
+  final bool assumeValid;
+  final bool extended;
+  final bool skipWorkTree;
+  final bool intentToAdd;
 
   GitIndexEntry(
-      {@required this.version,
-      @required this.cTime,
-      @required this.mTime,
-      @required this.device,
-      @required this.inode,
-      @required this.mode,
-      @required this.uid,
-      @required this.gid,
-      @required this.fileSize,
-      @required this.hash,
-      @required this.stage,
-      @required this.path,
+      {required this.version,
+      required this.cTime,
+      required this.mTime,
+      required this.device,
+      required this.inode,
+      required this.mode,
+      required this.uid,
+      required this.gid,
+      required this.fileSize,
+      required this.hash,
+      required this.stage,
+      required this.path,
       this.assumeValid = false,
       this.extended = false,
       this.skipWorkTree = false,
       this.intentToAdd = false});
 
-  final _vlqCodec = GitVLQCodec(offset: true);
+  static final _vlqCodec = GitVLQCodec(offset: true);
 
-  GitIndexEntry.fromBytes(ByteDataReader reader, String previousEntryPath, int indexVersion) {
-    version = indexVersion;
+  factory GitIndexEntry.fromBytes(ByteDataReader reader, String? previousEntryPath, int indexVersion) {
+    var version = indexVersion;
 
     var cTimeSeconds = reader.readUint32();
     var cTimeNanoSeconds = reader.readUint32();
-    cTime = GitIndexTimestamp(cTimeSeconds, cTimeNanoSeconds);
+    var cTime = GitIndexTimestamp(cTimeSeconds, cTimeNanoSeconds);
 
     var mTimeSeconds = reader.readUint32();
     var mTimeNanoSeconds = reader.readUint32();
-    mTime = GitIndexTimestamp(mTimeSeconds, mTimeNanoSeconds);
+    var mTime = GitIndexTimestamp(mTimeSeconds, mTimeNanoSeconds);
 
-    device = reader.readUint32();
-    inode = reader.readUint32();
-    mode = GitFileMode(reader.readUint32());
-    uid = reader.readUint32();
-    gid = reader.readUint32();
-    fileSize = reader.readUint32();
-    hash = GitHash.fromBytes(reader.read(20));
+    var device = reader.readUint32();
+    var inode = reader.readUint32();
+    var mode = GitFileMode(reader.readUint32());
+    var uid = reader.readUint32();
+    var gid = reader.readUint32();
+    var fileSize = reader.readUint32();
+    var hash = GitHash.fromBytes(reader.read(20));
 
     var flags = reader.readUint16();
-    assumeValid = (flags >> 12) & 0x8 > 0; //1000
-    extended = ((flags >> 12) & 0x4) > 0; //0100
-    intentToAdd = false;
-    skipWorkTree = false;
-    stage = GitFileStage((flags >> 12) & 0x3); // 0011
+    var assumeValid = (flags >> 12) & 0x8 > 0; //1000
+    var extended = ((flags >> 12) & 0x4) > 0; //0100
+    var intentToAdd = false;
+    var skipWorkTree = false;
+    var stage = GitFileStage((flags >> 12) & 0x3); // 0011
 
     if (extended && version == 2) {
       throw GitIndexException('Index version 2 must not have an extended flag');
@@ -89,6 +88,8 @@ class GitIndexEntry {
       // TODO: support sparse checkout
       skipWorkTree = (extendedFlags & skipWorkTreeMask) > 0;
     }
+
+    late String path;
     switch (version) {
       case 2:
       case 3:
@@ -111,16 +112,36 @@ class GitIndexEntry {
         break;
     }
 
-    if (version == 4) return;
-    // Read padding for version 2 and 3
-    var entrySize = 62 + path.length;
-    if (extended) entrySize += 2;
-    var padLength = 8 - (entrySize % 8);
-    reader.read(padLength);
+    if (version != 4) {
+      // Read padding for version 2 and 3
+      var entrySize = 62 + path.length;
+      if (extended) entrySize += 2;
+      var padLength = 8 - (entrySize % 8);
+      reader.read(padLength);
+    }
+
+    return GitIndexEntry(
+        version: version,
+        cTime: cTime,
+        mTime: mTime,
+        device: device,
+        inode: inode,
+        mode: mode,
+        uid: uid,
+        gid: gid,
+        fileSize: fileSize,
+        hash: hash,
+        stage: stage,
+        path: path,
+        assumeValid: assumeValid,
+        extended: extended,
+        skipWorkTree: skipWorkTree,
+        intentToAdd: intentToAdd);
   }
 
   Uint8List serialize(String previousEntryPath) {
     if (intentToAdd || skipWorkTree) {
+      // TODO: implement intentToAdd and skipWorkTree
       throw UnimplementedError('Unimplemented features intent-to-add and sparse checkout');
     }
 
@@ -184,15 +205,14 @@ class GitIndexEntry {
 }
 
 class _GitIndexEntryKey {
-  String path;
-  GitFileStage stage;
+  final String path;
+  final GitFileStage stage;
 
   _GitIndexEntryKey(this.path, this.stage);
 
-  _GitIndexEntryKey.fromEntry(GitIndexEntry entry) {
-    path = entry.path;
-    stage = entry.stage;
-  }
+  _GitIndexEntryKey.fromEntry(GitIndexEntry entry)
+      : path = entry.path,
+        stage = entry.stage;
 }
 
 class GitIndex {
@@ -209,9 +229,8 @@ class GitIndex {
     }
   });
 
-  final _signature = 'DIRC';
+  static final _signature = 'DIRC';
   int version;
-  GitHash hash;
 
   var extCachedTree = GitIdxExtCachedTree();
 
@@ -222,7 +241,8 @@ class GitIndex {
     });
   }
 
-  GitIndex.fromBytes(Uint8List data) {
+  factory GitIndex.fromBytes(Uint8List data) {
+    var entries = <GitIndexEntry>[];
     var reader = ByteDataReader(endian: Endian.big);
     reader.add(data);
 
@@ -231,7 +251,7 @@ class GitIndex {
     if (sig != _signature) {
       throw GitIndexException('Invalid signature $sig');
     }
-    version = reader.readUint32();
+    var version = reader.readUint32();
     if (version < 2 || version > 4) {
       throw GitIndexException('Version "$version" is unsupported; Only versions 2, 3 and 4 are supported');
     }
@@ -242,9 +262,10 @@ class GitIndex {
     for (var i = 0; i < numEntries; i++) {
       var entry = GitIndexEntry.fromBytes(reader, previousEntryPath, version);
       previousEntryPath = entry.path;
-      var key = _GitIndexEntryKey.fromEntry(entry);
-      _entries[key] = entry;
+      entries.add(entry);
     }
+
+    var index = GitIndex(entries, version: version);
 
     // Extensions
     while (reader.remainingLength != 20) {
@@ -255,7 +276,7 @@ class GitIndex {
 
       switch (signature) {
         case 'TREE':
-          extCachedTree = GitIdxExtCachedTree.fromBytes(data);
+          index.extCachedTree = GitIdxExtCachedTree.fromBytes(data);
           break;
         default:
           if (isOptional) {
@@ -268,8 +289,9 @@ class GitIndex {
 
     // Hash checksum over contents
     var genHash = GitHash.compute(data.sublist(0, data.length - 20));
-    hash = GitHash.fromBytes(reader.read(20));
+    var hash = GitHash.fromBytes(reader.read(20));
     if (genHash != hash) throw GitIndexException('Invalid file hash $genHash');
+    return index;
   }
 
   List<GitIndexEntry> getEntries() => _entries.values.toList();
@@ -294,11 +316,11 @@ class GitIndex {
     return true;
   }
 
-  /// Returns the root tree object. Null if no index entries are present
+  /// Returns the root tree object
   ///
-  /// onNewTree is called when the tree or any of its parents are not cached
-  /// The tree itself might not have been modified
-  GitTree computeTrees([Function(GitTree tree) onNewTree]) {
+  /// onNewTree is called when the tree or any of its parents are not found in the cache tree extension
+  /// The tree itself might not have been modified.
+  GitTree computeTrees([Function(GitTree tree)? onNewTree]) {
     // Keep track of the paths of cached entries
     var cachedTreePaths = <String>[];
     // Sort trees in top-down, depth-first order, while grouping sibling entries together
@@ -330,11 +352,8 @@ class GitIndex {
 
       // Generate trees that have not been cached
       var treeEntry = GitTreeEntry(mode: entry.mode, name: name, hash: entry.hash);
-      if (newTreesMap.containsKey(dirPath)) {
-        newTreesMap[dirPath].entries.add(treeEntry);
-      } else {
-        newTreesMap[dirPath] = GitTree([treeEntry]);
-      }
+      newTreesMap.putIfAbsent(dirPath, () => GitTree([]));
+      newTreesMap[dirPath]!.entries.add(treeEntry);
     }
 
     // Iterates from deepest directory
@@ -344,17 +363,17 @@ class GitIndex {
         var treeEntry = GitTreeEntry(mode: GitFileMode.dir, name: p.basename(dir), hash: tree.hash);
         var parentPath = p.dirname(dir);
         if (parentPath == '.') parentPath = '';
-        newTreesMap[parentPath].entries.add(treeEntry);
+        newTreesMap[parentPath]!.entries.add(treeEntry);
       }
 
       // Cache these trees
       var cachedEntry = GitIdxExtCachedTreeEntry.fromTree(dir, tree);
       extCachedTree.addEntry(cachedEntry);
-      if (!cachedTreePaths.any((path) => dir.startsWith(path))) {
+      if (onNewTree != null && !cachedTreePaths.any((path) => dir.startsWith(path))) {
         onNewTree(tree);
       }
     });
-    return newTreesMap[''];
+    return newTreesMap[''] ?? GitTree([]);
   }
 
   Uint8List serialize() {

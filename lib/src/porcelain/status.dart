@@ -28,7 +28,7 @@ class GitStatus {
     _indexEntries.forEach((path, entry) {
       deletedPaths.remove(path);
       if (_treeEntries.containsKey(path)) {
-        var treeEntry = _treeEntries[path];
+        var treeEntry = _treeEntries[path]!;
         if (treeEntry.hash != entry.hash) {
           // Modified file
           modifiedPaths.add(path);
@@ -51,7 +51,7 @@ class GitStatus {
     var unstagedPaths = <String, GitFileStatus>{};
     _indexEntries.forEach((path, entry) {
       if (_workingFiles.containsKey(path)) {
-        var file = _workingFiles[path];
+        var file = _workingFiles[path]!;
         var fileStat = file.statSync();
         var entryModified = entry.mTime.getDateTime();
         // Check if file is modified

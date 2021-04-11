@@ -10,7 +10,7 @@ class GitPackFileIdxEntry {
   final int crc32;
   final int offset;
 
-  GitPackFileIdxEntry({this.hash, this.crc32, this.offset});
+  GitPackFileIdxEntry({required this.hash, required this.crc32, required this.offset});
 }
 
 class GitPackFileIdx {
@@ -46,26 +46,27 @@ class GitPackFileIdx {
     var numObjects = fanTable.last;
 
     // Read Hashes
-    var hashes = List<GitHash>.filled(numObjects, null);
+    var hashes = <GitHash>[];
     for (var i = 0; i < numObjects; i++) {
       var hash = GitHash.fromBytes(reader.read(20));
-      hashes[i] = hash;
+      hashes.add(hash);
     }
 
     // Read crc32
-    var crcValues = List<int>.filled(numObjects, null);
+    // TODO: support crc
+    var crcValues = <int>[];
     for (var i = 0; i < numObjects; i++) {
-      crcValues[i] = reader.readUint32();
+      crcValues.add(reader.readUint32());
     }
 
     // Read offsets
-    var offsets = List<int>.filled(numObjects, null);
+    var offsets = <int>[];
     var offsets64BitPos = <int>[];
     for (var i = 0; i < numObjects; i++) {
       var d = reader.readUint32();
       var mask = 0x01 << 31;
       var msb = d & mask;
-      offsets[i] = d & ~mask;
+      offsets.add(d & ~mask);
       if (msb == 1) offsets64BitPos.add(i);
     }
 

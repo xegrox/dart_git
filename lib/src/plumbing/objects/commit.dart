@@ -4,10 +4,8 @@ import 'dart:typed_data';
 import 'package:equatable/equatable.dart';
 
 import 'package:dart_git/src/exceptions.dart';
-import 'package:dart_git/src/git_config.dart';
 import 'package:dart_git/src/git_hash.dart';
 import 'package:dart_git/src/plumbing/objects/object.dart';
-import 'package:dart_git/src/plumbing/objects/tree.dart';
 
 class GitCommit extends GitObject with EquatableMixin {
   final GitHash treeHash;
@@ -19,7 +17,7 @@ class GitCommit extends GitObject with EquatableMixin {
   @override
   String get signature => GitObjectSignature.commit;
 
-  GitCommit._(this.treeHash, this.parentHashes, this.author, this.committer, this.message);
+  GitCommit(this.treeHash, this.author, this.committer, this.message, [this.parentHashes = const []]);
 
   factory GitCommit.fromBytes(Uint8List data) {
     var lines = ascii.decode(data).split('\n');
@@ -91,19 +89,7 @@ class GitCommit extends GitObject with EquatableMixin {
     if (lines[nextLineIndex].isEmpty) nextLineIndex++; // Skip newline separator
     if (lines.last.isEmpty) lines.removeLast(); // Remove trailing newline
     var message = lines.sublist(nextLineIndex, lines.length).join('\n');
-    return GitCommit._(treeHash, parentHashes, author, committer, message);
-  }
-
-  factory GitCommit.fromTree(GitTree tree, String message, GitConfig config, [List<GitHash> parentHashes = const []]) {
-    var treeHash = tree.hash;
-    var name = config.getValue<GitConfigValueString>('user', 'name');
-    var email = config.getValue<GitConfigValueString>('user', 'email');
-    if (name == null || email == null) throw MissingCredentialsException();
-    var currentTime = DateTime.now();
-    var userTimestamp = GitUserTimestamp(name.value, email.value, currentTime, currentTime.timeZoneOffset);
-    var author = userTimestamp;
-    var committer = userTimestamp;
-    return GitCommit._(treeHash, parentHashes, author, committer, message);
+    return GitCommit(treeHash, author, committer, message, parentHashes);
   }
 
   @override
