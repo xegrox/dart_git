@@ -179,7 +179,21 @@ void main() {
         expect(config.getValue<GitConfigValueString>('core', 'dummy')!.value, '\t\n\\"');
       });
 
-      test('When_ValueStartsWithBackspace_Should_Ignore', () {
+      test('When_ValueHasEscapeNewlineChar_Should_AppendNextLine', () {
+        var raw = '[core] dummy = du\\\nmm\\\ny';
+        var bytes = Uint8List.fromList(raw.codeUnits);
+        var config = GitConfig.fromBytes(bytes);
+        expect(config.getValue<GitConfigValueString>('core', 'dummy')!.value, 'dummy');
+      });
+
+      test('When_ValueHasEscapeNothingChar_Should_IgnoreEscapeChar', () {
+        var raw = r'[core] dummy = dummy\';
+        var bytes = Uint8List.fromList(raw.codeUnits);
+        var config = GitConfig.fromBytes(bytes);
+        expect(config.getValue<GitConfigValueString>('core', 'dummy')!.value, 'dummy');
+      });
+
+      test('When_ValueStartsWithBackspaceChar_Should_IgnoreBackspaceChar', () {
         var raw = r'[core] dummy = \bdummy';
         var bytes = Uint8List.fromList(raw.codeUnits);
         var config = GitConfig.fromBytes(bytes);

@@ -172,9 +172,8 @@ class GitConfig {
           var c = rawValue[p];
           if (c == r'\') {
             if (p == rawValue.length - 1) {
-              // TODO: test this
               // '\' is the last char, append next line
-              if (++i < line.length - 1) rawValue += lines[i];
+              if (++i < lines.length) rawValue += lines[i];
               continue;
             }
 
