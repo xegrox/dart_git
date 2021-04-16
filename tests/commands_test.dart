@@ -130,10 +130,10 @@ void main() {
       expect(headHashRef.pathSpec, ['refs', 'heads', 'master']);
       expect(headHashRef.hash, commitHash);
 
-      var commitObj = repo.readObject(commitHash) as GitCommit;
-      var rootTreeObj = repo.readObject(commitObj.treeHash) as GitTree;
+      var commitObj = repo.readObject<GitCommit>(commitHash);
+      var rootTreeObj = repo.readObject<GitTree>(commitObj.treeHash);
       var anotherTreeHash = rootTreeObj.entries.firstWhere((e) => e.name == 'another').hash;
-      var anotherTreeObj = repo.readObject(anotherTreeHash) as GitTree;
+      var anotherTreeObj = repo.readObject<GitTree>(anotherTreeHash);
       expect(rootTreeObj.entries.length, 4);
       expect(anotherTreeObj.entries.length, 3);
     });
@@ -263,9 +263,9 @@ void main() {
     test('When_HaveAnnotation_Should_CreateRefAndObj', () {
       repo.writeTag('tag_2', tagObjHash, 'dummy');
       var tagRef = repo.readReference('refs/tags/tag_2') as GitReferenceHash;
-      var tagObj = repo.readObject(tagRef.hash!);
+      var tagObj = repo.readObject<GitTag>(tagRef.hash!);
       expect(tagObj.signature, GitObjectSignature.tag);
-      expect((tagObj as GitTag).objectHash, tagObjHash);
+      expect(tagObj.objectHash, tagObjHash);
     });
 
     test('When_DeleteExistingTag_Should_ReturnTrue', () {

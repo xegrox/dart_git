@@ -62,8 +62,16 @@ class BrokenReferenceException extends GitException {
 
 // Object
 class CorruptObjectException extends GitException {
-  final String msg;
-  CorruptObjectException(this.msg) : super('fatal: corrupt object: $msg');
+  CorruptObjectException(String msg) : super('fatal: corrupt object: $msg');
+}
+
+class InvalidObjectException extends GitException {
+  InvalidObjectException(String hash, String expected, String actual)
+      : super('fatal: expected a \'$expected\' object, but got \'$actual\' [$hash]');
+}
+
+class MissingObjectException extends GitException {
+  MissingObjectException(String hash) : super('fatal: missing object [$hash]');
 }
 
 // Tag

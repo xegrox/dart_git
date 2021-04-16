@@ -87,7 +87,7 @@ Map<String, GitTreeEntry> _getAllTreeEntries(GitRepo repo) {
   void l(String prefix, GitTree tree) {
     tree.entries.forEach((entry) {
       if (entry.mode == GitFileMode.dir) {
-        l(prefix + entry.name + '/', repo.readObject(entry.hash) as GitTree);
+        l(prefix + entry.name + '/', repo.readObject<GitTree>(entry.hash));
       } else {
         treeEntries[prefix + entry.name] = entry;
       }
@@ -96,8 +96,8 @@ Map<String, GitTreeEntry> _getAllTreeEntries(GitRepo repo) {
 
   var commitHash = repo.readHEAD().revParse().hash;
   if (commitHash != null) {
-    var commit = repo.readObject(commitHash) as GitCommit;
-    var tree = repo.readObject(commit.treeHash) as GitTree;
+    var commit = repo.readObject<GitCommit>(commitHash);
+    var tree = repo.readObject<GitTree>(commit.treeHash);
     l('', tree);
   }
   return treeEntries;

@@ -20,7 +20,7 @@ extension Commit on GitRepo {
 
     // Check if there is anything to commit
     if (headCommitHash != null) {
-      var parentCommit = readObject(headCommitHash) as GitCommit;
+      var parentCommit = readObject<GitCommit>(headCommitHash);
       if (parentCommit.treeHash == rootTree.hash) throw NothingToCommitException();
       parentHashes.add(headCommitHash);
     } else if (rootTree.entries.isEmpty) {
