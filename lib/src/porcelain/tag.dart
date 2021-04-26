@@ -26,12 +26,12 @@ extension Tag on GitRepo {
 
     GitReferenceHash ref;
     try {
-      ref = GitReferenceHash(['refs', 'tags', name], refHash);
+      ref = GitReferenceHash('refs/tags/$name', refHash);
     } on GitException {
       throw InvalidTagNameException(name);
     }
     writeReference(ref);
   }
 
-  bool deleteTag(String name) => deleteReference(['refs', 'tags', name]);
+  bool deleteTag(String name) => deleteReference('refs/tags/$name');
 }

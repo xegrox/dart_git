@@ -220,17 +220,20 @@ class GitConfig {
       }
 
       if (currentSection == null) throw exception;
-      config.addValue(currentSection, name, value, subsection: currentSubsection);
+      config.addValue(
+          currentSection, name, value, subsection: currentSubsection);
     }
     return config;
   }
 
-  void addValue(String section, String name, String? value, {String? subsection}) {
+  void addValue(String section, String name, String? value,
+      {String? subsection}) {
     var key = _RawValuesKey(section, subsection, name);
     _values.putIfAbsent(key, () => []).add(value);
   }
 
-  void setValue(String section, String name, String? value, {String? subsection}) {
+  void setValue(String section, String name, String? value,
+      {String? subsection}) {
     var key = _RawValuesKey(section, subsection, name);
     _values.putIfAbsent(key, () => [])
       ..clear()
@@ -242,7 +245,8 @@ class GitConfig {
     return _values.containsKey(key);
   }
 
-  List<T?>? getAllValues<T extends GitConfigValue>(String section, String name, {String? subsection}) {
+  List<T?>? getAllValues<T extends GitConfigValue>(String section, String name,
+      {String? subsection}) {
     var key = _RawValuesKey(section, subsection, name);
     // Deprecated section.subsection format
     return _values[key]?.map<T?>((value) {

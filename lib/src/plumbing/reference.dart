@@ -12,11 +12,10 @@ const _refRemotePrefix = _refPrefix + 'remotes/';
 enum GitReferenceType { hash, symbolic }
 
 abstract class GitReference {
-  // Path of ref relative to .git (e.g. HEAD, refs/heads/master) split by '/'
-  final List<String> pathSpec;
+  final String pathSpec;
 
-  GitReference(List<String> pathSpec) : pathSpec = List.unmodifiable(pathSpec) {
-    pathSpec.forEach((name) {
+  GitReference(this.pathSpec) {
+    pathSpec.split('/').forEach((name) {
       var exception = GitException('Invalid pathSpec name \'$name\' for ref');
       if (name.isEmpty || name[0] == '.') throw exception;
       var invalidChars = RegExp(r'@{|[:\?\[\\\^\*\~\ \t]');
@@ -33,11 +32,11 @@ abstract class GitReference {
     return r as GitReferenceHash;
   }
 
-  bool isHead() => pathSpec.join('/').startsWith(_refHeadPrefix);
+  bool isHead() => pathSpec.startsWith(_refHeadPrefix);
 
-  bool isTag() => pathSpec.join('/').startsWith(_refTagPrefix);
+  bool isTag() => pathSpec.startsWith(_refTagPrefix);
 
-  bool isRemote() => pathSpec.join('/').startsWith(_refRemotePrefix);
+  bool isRemote() => pathSpec.startsWith(_refRemotePrefix);
 
   Uint8List serialize();
 }
@@ -45,16 +44,16 @@ abstract class GitReference {
 class GitReferenceSymbolic extends GitReference {
   final GitReference target;
 
-  GitReferenceSymbolic(List<String> pathSpec, this.target) : super(pathSpec);
+  GitReferenceSymbolic(String pathSpec, this.target) : super(pathSpec);
 
   @override
-  Uint8List serialize() => ascii.encode('ref: ${target.pathSpec.join('/')}');
+  Uint8List serialize() => ascii.encode('ref: ${target.pathSpec}');
 }
 
 class GitReferenceHash extends GitReference {
   final GitHash? hash;
 
-  GitReferenceHash(List<String> pathSpec, this.hash) : super(pathSpec);
+  GitReferenceHash(String pathSpec, this.hash) : super(pathSpec);
 
   @override
   Uint8List serialize() => ascii.encode(hash.toString());

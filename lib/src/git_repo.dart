@@ -169,7 +169,7 @@ class GitRepo {
       var file = File(p.join(dotGitDir.path, pathSpec));
       if (!file.existsSync()) {
         if (pathSpecMustMatch) throw PathSpecNoMatchException(pathSpec);
-        return GitReferenceHash(pathSpec.split('/'), null);
+        return GitReferenceHash(pathSpec, null);
       }
 
       var data = file.readAsStringSync().trim();
@@ -178,10 +178,10 @@ class GitRepo {
       if (data.startsWith(symRefPrefix)) {
         pathSpecMustMatch = false;
         var target = _readReference(data.substring(symRefPrefix.length).trim());
-        return GitReferenceSymbolic(pathSpec.split('/'), target);
+        return GitReferenceSymbolic(pathSpec, target);
       } else {
         var isHash = RegExp(r'^[a-fA-F0-9]{40}$').hasMatch(data);
-        if (isHash) return GitReferenceHash(pathSpec.split('/'), GitHash(data));
+        if (isHash) return GitReferenceHash(pathSpec, GitHash(data));
         throw BrokenReferenceException(pathSpec);
       }
     }
@@ -190,7 +190,7 @@ class GitRepo {
   }
 
   void writeReference(GitReference ref, [bool recursive = true]) {
-    var file = File(p.join(dotGitDir.path, ref.pathSpec.join('/')));
+    var file = File(p.join(dotGitDir.path, ref.pathSpec));
     if (!file.parent.existsSync()) file.parent.createSync(recursive: true);
     if (!file.existsSync()) file.createSync();
     file.writeAsBytesSync(ref.serialize());
@@ -199,8 +199,8 @@ class GitRepo {
     }
   }
 
-  bool deleteReference(List<String> pathSpec) {
-    var file = File(p.join(dotGitDir.path, pathSpec.join('/')));
+  bool deleteReference(String pathSpec) {
+    var file = File(p.join(dotGitDir.path, pathSpec));
     try {
       file.deleteSync();
       return true;

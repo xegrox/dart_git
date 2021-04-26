@@ -126,8 +126,8 @@ void main() {
 
       var head = repo.readHEAD() as GitReferenceSymbolic; // HEAD
       var headHashRef = head.target as GitReferenceHash; // refs/heads/master
-      expect(head.pathSpec, ['HEAD']);
-      expect(headHashRef.pathSpec, ['refs', 'heads', 'master']);
+      expect(head.pathSpec, 'HEAD');
+      expect(headHashRef.pathSpec, 'refs/heads/master');
       expect(headHashRef.hash, commitHash);
 
       var commitObj = repo.readObject<GitCommit>(commitHash);
