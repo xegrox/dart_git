@@ -38,7 +38,7 @@ extension Commit on GitRepo {
     writeObject(commit);
 
     // Write head
-    headHashRef = GitReferenceHash(headHashRef.pathSpec, commit.hash);
+    headHashRef = GitReferenceHash(headHashRef.refName, commit.hash);
     writeReference(headHashRef);
     return commit.hash;
   }

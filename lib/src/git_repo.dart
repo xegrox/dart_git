@@ -190,7 +190,7 @@ class GitRepo {
   }
 
   void writeReference(GitReference ref, [bool recursive = true]) {
-    var file = File(p.join(dotGitDir.path, ref.pathSpec));
+    var file = File(p.join(dotGitDir.path, ref.refName));
     if (!file.parent.existsSync()) file.parent.createSync(recursive: true);
     if (!file.existsSync()) file.createSync();
     file.writeAsBytesSync(ref.serialize());

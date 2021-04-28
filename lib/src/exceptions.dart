@@ -60,6 +60,10 @@ class BrokenReferenceException extends GitException {
   BrokenReferenceException(String pathSpec) : super('fatal: broken git reference \'ref: $pathSpec\'');
 }
 
+class InvalidReferenceNameException extends GitException {
+  InvalidReferenceNameException(String pathSpec) : super('fatal: invalid reference name \'ref: $pathSpec\'');
+}
+
 // Object
 class CorruptObjectException extends GitException {
   CorruptObjectException(String msg) : super('fatal: corrupt object: $msg');

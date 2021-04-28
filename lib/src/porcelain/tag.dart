@@ -27,7 +27,7 @@ extension Tag on GitRepo {
     GitReferenceHash ref;
     try {
       ref = GitReferenceHash('refs/tags/$name', refHash);
-    } on GitException {
+    } on InvalidReferenceNameException {
       throw InvalidTagNameException(name);
     }
     writeReference(ref);
