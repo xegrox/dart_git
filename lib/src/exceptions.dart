@@ -82,3 +82,16 @@ class MissingObjectException extends GitException {
 class InvalidTagNameException extends GitException {
   InvalidTagNameException(String name) : super('fatal: invalid tag name \'$name\'');
 }
+
+// Branch
+class InvalidBranchNameException extends GitException {
+  InvalidBranchNameException(String name) : super('fatal: invalid branch name \'$name\'');
+}
+
+class BranchNotFoundException extends GitException {
+  BranchNotFoundException(String name) : super('fatal: branch \'$name\' not found');
+}
+
+class DeleteCheckedOutBranchException extends GitException {
+  DeleteCheckedOutBranchException(String name) : super('fatal: cannot delete checked out branch \'$name\'');
+}

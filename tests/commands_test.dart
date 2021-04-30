@@ -5,6 +5,7 @@ import 'package:test/test.dart';
 
 import 'package:dart_git/dart_git.dart';
 import 'package:dart_git/src/exceptions.dart';
+import 'package:dart_git/src/git_repo.dart' show RepoTree;
 import 'package:dart_git/src/plumbing/objects/commit.dart';
 import 'package:dart_git/src/plumbing/objects/object.dart';
 import 'package:dart_git/src/plumbing/objects/tag.dart';
@@ -126,8 +127,8 @@ void main() {
 
       var head = repo.readHEAD() as GitReferenceSymbolic; // HEAD
       var headHashRef = head.target as GitReferenceHash; // refs/heads/master
-      expect(head.pathSpec, 'HEAD');
-      expect(headHashRef.pathSpec, 'refs/heads/master');
+      expect(head.refName, 'HEAD');
+      expect(headHashRef.refName, 'refs/heads/master');
       expect(headHashRef.hash, commitHash);
 
       var commitObj = repo.readObject<GitCommit>(commitHash);
@@ -254,6 +255,10 @@ void main() {
   group('Test tag', () {
     var tagObjHash = TestObjHashes.blob_1;
 
+    test('When_InvalidName_Should_ThrowException', () {
+      expect(() => repo.writeTag('/dummy', tagObjHash), throwsA(TypeMatcher<InvalidTagNameException>()));
+    });
+
     test('When_NoAnnotation_Should_CreateRef', () {
       repo.writeTag('tag_1', tagObjHash);
       var tagRef = repo.readReference('refs/tags/tag_1') as GitReferenceHash;
@@ -278,6 +283,32 @@ void main() {
     test('When_DeleteNonExistingTag_Should_ReturnFalse', () {
       expect(repo.deleteTag('tag_1'), false);
       expect(repo.deleteTag('tag_2'), false);
+    });
+  });
+
+  group('Test branch', () {
+    late GitHash revision;
+
+    test('When_InvalidName_Should_ThrowException', () {
+      revision = repo.readHEAD().revParse().hash!;
+      expect(() => repo.createBranch('/dummy', revision), throwsA(TypeMatcher<InvalidBranchNameException>()));
+    });
+
+    test('When_CreateBranch_Should_CreateRef', () {
+      var ref = repo.createBranch('dummy', revision);
+      expect(File(p.join(repo.refHeadsFolder.path, 'dummy')).existsSync(), true);
+      expect(repo.readReference('refs/heads/dummy').revParse(), ref);
+    });
+
+    test('When_CreateBranchWithFolder_Should_CreateRef', () {
+      var ref = repo.createBranch('dum/dummy', revision);
+      expect(File(p.join(repo.refHeadsFolder.path, 'dum/dummy')).existsSync(), true);
+      expect(repo.readReference('refs/heads/dum/dummy').revParse(), ref);
+    });
+
+    test('When_DeleteBranch_Should_DeleteRef', () {
+      repo.deleteBranch('dum/dummy');
+      expect(Directory(p.join('refs/heads/dum')).existsSync(), false);
     });
   });
 

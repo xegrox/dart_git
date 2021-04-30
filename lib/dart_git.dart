@@ -7,3 +7,4 @@ export 'package:dart_git/src/porcelain/rm.dart';
 export 'package:dart_git/src/porcelain/commit.dart';
 export 'package:dart_git/src/porcelain/tag.dart';
 export 'package:dart_git/src/porcelain/status.dart';
+export 'package:dart_git/src/porcelain/branch.dart';
