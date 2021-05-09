@@ -14,7 +14,9 @@ class PathSpecOutsideRepoException extends GitException {
 }
 
 class PathSpecNoMatchException extends GitException {
-  PathSpecNoMatchException(String pathSpec) : super('fatal: pathspec \'$pathSpec\' did not match any files');
+  String pathSpec;
+
+  PathSpecNoMatchException(this.pathSpec) : super('fatal: pathspec \'$pathSpec\' did not match any files');
 }
 
 // Repo

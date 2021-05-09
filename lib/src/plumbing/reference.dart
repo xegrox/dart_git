@@ -57,7 +57,7 @@ class GitReferenceSymbolic extends GitReference with EquatableMixin {
 }
 
 class GitReferenceHash extends GitReference with EquatableMixin {
-  final GitHash? hash;
+  final GitHash hash;
 
   GitReferenceHash(String refName, this.hash) : super(refName);
 

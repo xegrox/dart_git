@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:dart_git/src/git_hash.dart';
 import 'package:path/path.dart' as p;
 import 'package:test/test.dart';
 
@@ -268,7 +269,7 @@ void main() {
     test('When_HaveAnnotation_Should_CreateRefAndObj', () {
       repo.writeTag('tag_2', tagObjHash, 'dummy');
       var tagRef = repo.readReference('refs/tags/tag_2') as GitReferenceHash;
-      var tagObj = repo.readObject<GitTag>(tagRef.hash!);
+      var tagObj = repo.readObject<GitTag>(tagRef.hash);
       expect(tagObj.signature, GitObjectSignature.tag);
       expect(tagObj.objectHash, tagObjHash);
     });
@@ -290,7 +291,7 @@ void main() {
     late GitHash revision;
 
     test('When_InvalidName_Should_ThrowException', () {
-      revision = repo.readHEAD().revParse().hash!;
+      revision = repo.readHEAD().revParse().hash;
       expect(() => repo.createBranch('/dummy', revision), throwsA(TypeMatcher<InvalidBranchNameException>()));
     });
 

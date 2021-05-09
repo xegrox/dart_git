@@ -10,21 +10,23 @@ extension Commit on GitRepo {
   GitHash commit(String message) {
     validate();
 
+    var parentHashes = <GitHash>[];
     var index = readIndex();
-    var headHashRef = readHEAD().revParse();
-    var headCommitHash = headHashRef.hash;
     var rootTree = index.computeTrees((tree) {
       writeObject(tree);
     });
-    var parentHashes = <GitHash>[];
 
-    // Check if there is anything to commit
-    if (headCommitHash != null) {
-      var parentCommit = readObject<GitCommit>(headCommitHash);
+    late String refName;
+    try {
+      var headHashRef = readHEAD().revParse();
+      refName = headHashRef.refName;
+      var parentCommit = readObject<GitCommit>(headHashRef.hash);
       if (parentCommit.treeHash == rootTree.hash) throw NothingToCommitException();
-      parentHashes.add(headCommitHash);
-    } else if (rootTree.entries.isEmpty) {
-      throw NothingToCommitException();
+      parentHashes.add(headHashRef.hash);
+    } on PathSpecNoMatchException catch (e) {
+      // First commit on empty branch
+      if (rootTree.entries.isEmpty) throw NothingToCommitException();
+      refName = e.pathSpec;
     }
 
     // Write objects
@@ -38,8 +40,7 @@ extension Commit on GitRepo {
     writeObject(commit);
 
     // Write head
-    headHashRef = GitReferenceHash(headHashRef.refName, commit.hash);
-    writeReference(headHashRef);
+    writeReference(GitReferenceHash(refName, commit.hash));
     return commit.hash;
   }
 }

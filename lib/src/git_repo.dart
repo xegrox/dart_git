@@ -164,29 +164,20 @@ class GitRepo {
   }
 
   GitReference readReference(String pathSpec) {
-    var pathSpecMustMatch = true;
-    GitReference _readReference(String pathSpec) {
-      var file = File(p.join(dotGitDir.path, pathSpec));
-      if (!file.existsSync()) {
-        if (pathSpecMustMatch) throw PathSpecNoMatchException(pathSpec);
-        return GitReferenceHash(pathSpec, null);
-      }
+    var file = File(p.join(dotGitDir.path, pathSpec));
+    if (!file.existsSync()) throw PathSpecNoMatchException(pathSpec);
 
-      var data = file.readAsStringSync().trim();
-      var symRefPrefix = 'ref:';
+    var data = file.readAsStringSync().trim();
+    var symRefPrefix = 'ref:';
 
-      if (data.startsWith(symRefPrefix)) {
-        pathSpecMustMatch = false;
-        var target = _readReference(data.substring(symRefPrefix.length).trim());
-        return GitReferenceSymbolic(pathSpec, target);
-      } else {
-        var isHash = RegExp(r'^[a-fA-F0-9]{40}$').hasMatch(data);
-        if (isHash) return GitReferenceHash(pathSpec, GitHash(data));
-        throw BrokenReferenceException(pathSpec);
-      }
+    if (data.startsWith(symRefPrefix)) {
+      var target = readReference(data.substring(symRefPrefix.length).trim());
+      return GitReferenceSymbolic(pathSpec, target);
+    } else {
+      var isHash = RegExp(r'^[a-fA-F0-9]{40}$').hasMatch(data);
+      if (isHash) return GitReferenceHash(pathSpec, GitHash(data));
+      throw BrokenReferenceException(pathSpec);
     }
-
-    return _readReference(pathSpec);
   }
 
   void writeReference(GitReference ref, [bool recursive = true]) {
